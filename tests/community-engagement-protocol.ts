@@ -217,4 +217,43 @@ describe("community-engagement-protocol", () => {
     expect(updatedGroupHub.admins).to.have.lengthOf(1);
     expect(updatedGroupHub.admins[0].toString()).to.equal(provider.wallet.publicKey.toString());
   });
+
+  it("Creates an achievement", async () => {
+    const groupHub = anchor.web3.Keypair.generate();
+    const name = "Test Group Hub";
+    const description = "A test group hub for our community engagement protocol";
+
+    await program.methods
+      .createGroupHub(name, description)
+      .accounts({
+        groupHub: groupHub.publicKey,
+        groupHubList: groupHubList.publicKey,
+        user: provider.wallet.publicKey,
+      })
+      .signers([groupHub])
+      .rpc();
+
+    const achievement = anchor.web3.Keypair.generate();
+    const achievementName = "Test Achievement";
+    const achievementDescription = "A test achievement for our protocol";
+    const achievementCriteria = "Complete 5 tasks";
+    const achievementPoints = 100;
+
+    await program.methods
+      .createAchievement(achievementName, achievementDescription, achievementCriteria, achievementPoints)
+      .accounts({
+        groupHub: groupHub.publicKey,
+        achievement: achievement.publicKey,
+        authority: provider.wallet.publicKey,
+      })
+      .signers([achievement])
+      .rpc();
+
+    const achievementAccount = await program.account.achievement.fetch(achievement.publicKey);
+    expect(achievementAccount.name).to.equal(achievementName);
+    expect(achievementAccount.description).to.equal(achievementDescription);
+    expect(achievementAccount.criteria).to.equal(achievementCriteria);
+    expect(achievementAccount.points).to.equal(achievementPoints);
+    expect(achievementAccount.groupHub.toString()).to.equal(groupHub.publicKey.toString());
+  });
 });

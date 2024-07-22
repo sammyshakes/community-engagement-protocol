@@ -11,7 +11,7 @@ pub fn create_achievement(
     points: u32,
 ) -> Result<()> {
     let achievement = &mut ctx.accounts.achievement;
-    let group_hub = &ctx.accounts.group_hub;
+    let group_hub = &mut ctx.accounts.group_hub;
     let clock = Clock::get()?;
 
     if name.chars().count() > 50 {
@@ -28,6 +28,8 @@ pub fn create_achievement(
     achievement.points = points;
     achievement.created_at = clock.unix_timestamp;
     achievement.updated_at = clock.unix_timestamp;
+
+    group_hub.achievements.push(achievement.key());
 
     msg!(
         "Achievement '{}' created for Group Hub '{}'",

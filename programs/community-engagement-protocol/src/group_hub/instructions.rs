@@ -67,6 +67,7 @@ pub fn get_group_hub_info(ctx: Context<GetGroupHubInfo>) -> Result<GroupHubInfo>
         name: group_hub.name.clone(),
         description: group_hub.description.clone(),
         admins: group_hub.admins.clone(),
+        achievements: group_hub.achievements.clone(),
     })
 }
 

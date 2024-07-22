@@ -5,6 +5,7 @@ pub struct GroupHub {
     pub name: String,
     pub description: String,
     pub admins: Vec<Pubkey>,
+    pub achievements: Vec<Pubkey>,
 }
 
 #[account]
@@ -27,4 +28,5 @@ pub struct GroupHubInfo {
     pub name: String,
     pub description: String,
     pub admins: Vec<Pubkey>,
+    pub achievements: Vec<Pubkey>,
 }
