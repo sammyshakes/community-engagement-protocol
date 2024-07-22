@@ -82,6 +82,27 @@ pub mod community_engagement_protocol {
         msg!("New admin added to Group Hub '{}'", group_hub.name);
         Ok(())
     }
+
+    pub fn remove_admin(ctx: Context<RemoveAdmin>, admin_to_remove: Pubkey) -> Result<()> {
+        let group_hub = &mut ctx.accounts.group_hub;
+        let user = &ctx.accounts.user;
+
+        if !group_hub.admins.contains(&user.key()) {
+            return Err(CepError::Unauthorized.into());
+        }
+
+        if !group_hub.admins.contains(&admin_to_remove) {
+            return Err(CepError::AdminNotFound.into());
+        }
+
+        if group_hub.admins.len() == 1 {
+            return Err(CepError::CannotRemoveLastAdmin.into());
+        }
+
+        group_hub.admins.retain(|&x| x != admin_to_remove);
+        msg!("Admin removed from Group Hub '{}'", group_hub.name);
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -116,6 +137,13 @@ pub struct AddAdmin<'info> {
     pub user: Signer<'info>,
 }
 
+#[derive(Accounts)]
+pub struct RemoveAdmin<'info> {
+    #[account(mut)]
+    pub group_hub: Account<'info, GroupHub>,
+    pub user: Signer<'info>,
+}
+
 #[account]
 pub struct GroupHub {
     pub name: String,
@@ -140,4 +168,8 @@ pub enum CepError {
     Unauthorized,
     #[msg("This admin already exists for the group hub")]
     AdminAlreadyExists,
+    #[msg("Admin not found in the group hub")]
+    AdminNotFound,
+    #[msg("Cannot remove the last admin from the group hub")]
+    CannotRemoveLastAdmin,
 }

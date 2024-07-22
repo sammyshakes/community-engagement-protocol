@@ -199,4 +199,69 @@ describe("community-engagement-protocol", () => {
       expect(error.error.errorMessage).to.equal("You are not authorized to perform this action");
     }
   });
+
+  it("Removes an admin from a group hub", async () => {
+    const groupHub = anchor.web3.Keypair.generate();
+    const name = "Test Group Hub";
+    const description = "A test group hub for our community engagement protocol";
+
+    await program.methods
+      .createGroupHub(name, description)
+      .accounts({
+        groupHub: groupHub.publicKey,
+        user: provider.wallet.publicKey,
+      })
+      .signers([groupHub])
+      .rpc();
+
+    const newAdmin = anchor.web3.Keypair.generate();
+
+    await program.methods
+      .addAdmin(newAdmin.publicKey)
+      .accounts({
+        groupHub: groupHub.publicKey,
+        user: provider.wallet.publicKey,
+      })
+      .rpc();
+
+    await program.methods
+      .removeAdmin(newAdmin.publicKey)
+      .accounts({
+        groupHub: groupHub.publicKey,
+        user: provider.wallet.publicKey,
+      })
+      .rpc();
+
+    const updatedGroupHub = await program.account.groupHub.fetch(groupHub.publicKey);
+    expect(updatedGroupHub.admins).to.have.lengthOf(1);
+    expect(updatedGroupHub.admins[0].toString()).to.equal(provider.wallet.publicKey.toString());
+});
+
+it("Fails to remove the last admin from a group hub", async () => {
+    const groupHub = anchor.web3.Keypair.generate();
+    const name = "Test Group Hub";
+    const description = "A test group hub for our community engagement protocol";
+
+    await program.methods
+      .createGroupHub(name, description)
+      .accounts({
+        groupHub: groupHub.publicKey,
+        user: provider.wallet.publicKey,
+      })
+      .signers([groupHub])
+      .rpc();
+
+    try {
+      await program.methods
+        .removeAdmin(provider.wallet.publicKey)
+        .accounts({
+          groupHub: groupHub.publicKey,
+          user: provider.wallet.publicKey,
+        })
+        .rpc();
+      expect.fail("The transaction should have failed");
+    } catch (error) {
+      expect(error.error.errorMessage).to.equal("Cannot remove the last admin from the group hub");
+    }
+});
 });
