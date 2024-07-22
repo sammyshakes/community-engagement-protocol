@@ -6,6 +6,12 @@ declare_id!("7FQ74JMt2Eeca2RD2aLVBv4No8e9PUt8SHfGsUzKhqje");
 pub mod community_engagement_protocol {
     use super::*;
 
+    pub fn initialize_group_hub_list(ctx: Context<InitializeGroupHubList>) -> Result<()> {
+        let group_hub_list = &mut ctx.accounts.group_hub_list;
+        group_hub_list.group_hubs = Vec::with_capacity(200);
+        Ok(())
+    }
+
     pub fn create_group_hub(
         ctx: Context<CreateGroupHub>,
         name: String,
@@ -25,6 +31,8 @@ pub mod community_engagement_protocol {
         group_hub.name = name;
         group_hub.description = description;
         group_hub.admins = vec![user.key()];
+
+        ctx.accounts.group_hub_list.add(group_hub.key());
 
         msg!("Group Hub '{}' created", group_hub.name);
         Ok(())
@@ -64,6 +72,10 @@ pub mod community_engagement_protocol {
             description: group_hub.description.clone(),
             admins: group_hub.admins.clone(),
         })
+    }
+
+    pub fn list_all_group_hubs(ctx: Context<ListAllGroupHubs>) -> Result<Vec<Pubkey>> {
+        Ok(ctx.accounts.group_hub_list.get_all())
     }
 
     pub fn add_admin(ctx: Context<AddAdmin>, new_admin: Pubkey) -> Result<()> {
@@ -106,6 +118,19 @@ pub mod community_engagement_protocol {
 }
 
 #[derive(Accounts)]
+pub struct InitializeGroupHubList<'info> {
+    #[account(
+        init,
+        payer = user,
+        space = 8 + 4 + 200 * 32 // Discriminator + Vec length + 200 Pubkeys
+    )]
+    pub group_hub_list: Account<'info, GroupHubList>,
+    #[account(mut)]
+    pub user: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 pub struct CreateGroupHub<'info> {
     #[account(
         init,
@@ -113,6 +138,8 @@ pub struct CreateGroupHub<'info> {
         space = 8 + 50 + 4 + 200 + 4 + 32 // discriminator + name + description + admin
     )]
     pub group_hub: Account<'info, GroupHub>,
+    #[account(mut)]
+    pub group_hub_list: Account<'info, GroupHubList>,
     #[account(mut)]
     pub user: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -128,6 +155,26 @@ pub struct UpdateGroupHub<'info> {
 #[derive(Accounts)]
 pub struct GetGroupHubInfo<'info> {
     pub group_hub: Account<'info, GroupHub>,
+}
+
+#[derive(Accounts)]
+pub struct ListAllGroupHubs<'info> {
+    pub group_hub_list: Account<'info, GroupHubList>,
+}
+
+#[account]
+pub struct GroupHubList {
+    pub group_hubs: Vec<Pubkey>,
+}
+
+impl GroupHubList {
+    pub fn add(&mut self, group_hub: Pubkey) {
+        self.group_hubs.push(group_hub);
+    }
+
+    pub fn get_all(&self) -> Vec<Pubkey> {
+        self.group_hubs.clone()
+    }
 }
 
 #[derive(Accounts)]
