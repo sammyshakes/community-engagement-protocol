@@ -1,15 +1,22 @@
 use anchor_lang::prelude::*;
 
+pub mod achievement;
+pub mod errors;
+pub mod group_hub;
+
+use achievement::instructions::*;
+use group_hub::instructions::*;
+use group_hub::state::GroupHubInfo;
+
 declare_id!("7FQ74JMt2Eeca2RD2aLVBv4No8e9PUt8SHfGsUzKhqje");
 
 #[program]
 pub mod community_engagement_protocol {
     use super::*;
 
+    // Group Hub Instructions
     pub fn initialize_group_hub_list(ctx: Context<InitializeGroupHubList>) -> Result<()> {
-        let group_hub_list = &mut ctx.accounts.group_hub_list;
-        group_hub_list.group_hubs = Vec::with_capacity(200);
-        Ok(())
+        group_hub::instructions::initialize_group_hub_list(ctx)
     }
 
     pub fn create_group_hub(
@@ -17,25 +24,7 @@ pub mod community_engagement_protocol {
         name: String,
         description: String,
     ) -> Result<()> {
-        let group_hub = &mut ctx.accounts.group_hub;
-        let user = &ctx.accounts.user;
-
-        if name.chars().count() > 50 {
-            return Err(CepError::NameTooLong.into());
-        }
-
-        if description.chars().count() > 200 {
-            return Err(CepError::DescriptionTooLong.into());
-        }
-
-        group_hub.name = name;
-        group_hub.description = description;
-        group_hub.admins = vec![user.key()];
-
-        ctx.accounts.group_hub_list.add(group_hub.key());
-
-        msg!("Group Hub '{}' created", group_hub.name);
-        Ok(())
+        group_hub::instructions::create_group_hub(ctx, name, description)
     }
 
     pub fn update_group_hub(
@@ -43,180 +32,33 @@ pub mod community_engagement_protocol {
         name: String,
         description: String,
     ) -> Result<()> {
-        let group_hub = &mut ctx.accounts.group_hub;
-        let user = &ctx.accounts.user;
-
-        if name.chars().count() > 50 {
-            return Err(CepError::NameTooLong.into());
-        }
-
-        if description.chars().count() > 200 {
-            return Err(CepError::DescriptionTooLong.into());
-        }
-
-        if !group_hub.admins.contains(&user.key()) {
-            return Err(CepError::Unauthorized.into());
-        }
-
-        group_hub.name = name;
-        group_hub.description = description;
-
-        msg!("Group Hub '{}' updated", group_hub.name);
-        Ok(())
+        group_hub::instructions::update_group_hub(ctx, name, description)
     }
 
     pub fn get_group_hub_info(ctx: Context<GetGroupHubInfo>) -> Result<GroupHubInfo> {
-        let group_hub = &ctx.accounts.group_hub;
-        Ok(GroupHubInfo {
-            name: group_hub.name.clone(),
-            description: group_hub.description.clone(),
-            admins: group_hub.admins.clone(),
-        })
+        group_hub::instructions::get_group_hub_info(ctx)
     }
 
     pub fn list_all_group_hubs(ctx: Context<ListAllGroupHubs>) -> Result<Vec<Pubkey>> {
-        Ok(ctx.accounts.group_hub_list.get_all())
+        group_hub::instructions::list_all_group_hubs(ctx)
     }
 
     pub fn add_admin(ctx: Context<AddAdmin>, new_admin: Pubkey) -> Result<()> {
-        let group_hub = &mut ctx.accounts.group_hub;
-        let user = &ctx.accounts.user;
-
-        if !group_hub.admins.contains(&user.key()) {
-            return Err(CepError::Unauthorized.into());
-        }
-
-        if group_hub.admins.contains(&new_admin) {
-            return Err(CepError::AdminAlreadyExists.into());
-        }
-
-        group_hub.admins.push(new_admin);
-        msg!("New admin added to Group Hub '{}'", group_hub.name);
-        Ok(())
+        group_hub::instructions::add_admin(ctx, new_admin)
     }
 
     pub fn remove_admin(ctx: Context<RemoveAdmin>, admin_to_remove: Pubkey) -> Result<()> {
-        let group_hub = &mut ctx.accounts.group_hub;
-        let user = &ctx.accounts.user;
-
-        if !group_hub.admins.contains(&user.key()) {
-            return Err(CepError::Unauthorized.into());
-        }
-
-        if !group_hub.admins.contains(&admin_to_remove) {
-            return Err(CepError::AdminNotFound.into());
-        }
-
-        if group_hub.admins.len() == 1 {
-            return Err(CepError::CannotRemoveLastAdmin.into());
-        }
-
-        group_hub.admins.retain(|&x| x != admin_to_remove);
-        msg!("Admin removed from Group Hub '{}'", group_hub.name);
-        Ok(())
-    }
-}
-
-#[derive(Accounts)]
-pub struct InitializeGroupHubList<'info> {
-    #[account(
-        init,
-        payer = user,
-        space = 8 + 4 + 200 * 32 // Discriminator + Vec length + 200 Pubkeys
-    )]
-    pub group_hub_list: Account<'info, GroupHubList>,
-    #[account(mut)]
-    pub user: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct CreateGroupHub<'info> {
-    #[account(
-        init,
-        payer = user,
-        space = 8 + 50 + 4 + 200 + 4 + 32 // discriminator + name + description + admin
-    )]
-    pub group_hub: Account<'info, GroupHub>,
-    #[account(mut)]
-    pub group_hub_list: Account<'info, GroupHubList>,
-    #[account(mut)]
-    pub user: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateGroupHub<'info> {
-    #[account(mut)]
-    pub group_hub: Account<'info, GroupHub>,
-    pub user: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct GetGroupHubInfo<'info> {
-    pub group_hub: Account<'info, GroupHub>,
-}
-
-#[derive(Accounts)]
-pub struct ListAllGroupHubs<'info> {
-    pub group_hub_list: Account<'info, GroupHubList>,
-}
-
-#[account]
-pub struct GroupHubList {
-    pub group_hubs: Vec<Pubkey>,
-}
-
-impl GroupHubList {
-    pub fn add(&mut self, group_hub: Pubkey) {
-        self.group_hubs.push(group_hub);
+        group_hub::instructions::remove_admin(ctx, admin_to_remove)
     }
 
-    pub fn get_all(&self) -> Vec<Pubkey> {
-        self.group_hubs.clone()
+    // Achievement Instructions
+    pub fn create_achievement(
+        ctx: Context<CreateAchievement>,
+        name: String,
+        description: String,
+        criteria: String,
+        points: u32,
+    ) -> Result<()> {
+        achievement::instructions::create_achievement(ctx, name, description, criteria, points)
     }
-}
-
-#[derive(Accounts)]
-pub struct AddAdmin<'info> {
-    #[account(mut)]
-    pub group_hub: Account<'info, GroupHub>,
-    pub user: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct RemoveAdmin<'info> {
-    #[account(mut)]
-    pub group_hub: Account<'info, GroupHub>,
-    pub user: Signer<'info>,
-}
-
-#[account]
-pub struct GroupHub {
-    pub name: String,
-    pub description: String,
-    pub admins: Vec<Pubkey>,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq)]
-pub struct GroupHubInfo {
-    pub name: String,
-    pub description: String,
-    pub admins: Vec<Pubkey>,
-}
-
-#[error_code]
-pub enum CepError {
-    #[msg("Group Hub name must be 50 characters or less")]
-    NameTooLong,
-    #[msg("Group Hub description must be 200 characters or less")]
-    DescriptionTooLong,
-    #[msg("You are not authorized to perform this action")]
-    Unauthorized,
-    #[msg("This admin already exists for the group hub")]
-    AdminAlreadyExists,
-    #[msg("Admin not found in the group hub")]
-    AdminNotFound,
-    #[msg("Cannot remove the last admin from the group hub")]
-    CannotRemoveLastAdmin,
 }
