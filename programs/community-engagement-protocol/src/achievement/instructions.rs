@@ -39,6 +39,25 @@ pub fn create_achievement(
     Ok(())
 }
 
+pub fn award_achievement(ctx: Context<AwardAchievement>) -> Result<()> {
+    let user_achievement = &mut ctx.accounts.user_achievement;
+    let achievement = &ctx.accounts.achievement;
+    let group_hub = &ctx.accounts.group_hub;
+    let clock = Clock::get()?;
+
+    if !group_hub.admins.contains(&ctx.accounts.authority.key()) {
+        return Err(CepError::Unauthorized.into());
+    }
+
+    user_achievement.user = ctx.accounts.user.key();
+    user_achievement.achievement = achievement.key();
+    user_achievement.group_hub = group_hub.key();
+    user_achievement.awarded_at = clock.unix_timestamp;
+
+    msg!("Achievement '{}' awarded to user", achievement.name);
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct CreateAchievement<'info> {
     #[account(mut)]
@@ -49,6 +68,25 @@ pub struct CreateAchievement<'info> {
         space = 8 + 32 + 50 + 200 + 200 + 4 + 8 + 8
     )]
     pub achievement: Account<'info, Achievement>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct AwardAchievement<'info> {
+    #[account(mut)]
+    pub group_hub: Account<'info, GroupHub>,
+    #[account(
+        init,
+        payer = authority,
+        space = 8 + 32 + 32 + 32 + 8
+    )]
+    pub user_achievement: Account<'info, UserAchievement>,
+    #[account(constraint = achievement.group_hub == group_hub.key())]
+    pub achievement: Account<'info, Achievement>,
+    /// CHECK: This is not written to or read from.
+    pub user: AccountInfo<'info>,
     #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,

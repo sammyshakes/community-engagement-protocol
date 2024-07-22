@@ -61,4 +61,8 @@ pub mod community_engagement_protocol {
     ) -> Result<()> {
         achievement::instructions::create_achievement(ctx, name, description, criteria, points)
     }
+
+    pub fn award_achievement(ctx: Context<AwardAchievement>) -> Result<()> {
+        achievement::instructions::award_achievement(ctx)
+    }
 }

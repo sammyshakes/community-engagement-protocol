@@ -256,4 +256,57 @@ describe("community-engagement-protocol", () => {
     expect(achievementAccount.points).to.equal(achievementPoints);
     expect(achievementAccount.groupHub.toString()).to.equal(groupHub.publicKey.toString());
   });
+
+  it("Awards an achievement to a user", async () => {
+    const groupHub = anchor.web3.Keypair.generate();
+    const name = "Test Group Hub";
+    const description = "A test group hub for our community engagement protocol";
+
+    await program.methods
+      .createGroupHub(name, description)
+      .accounts({
+        groupHub: groupHub.publicKey,
+        groupHubList: groupHubList.publicKey,
+        user: provider.wallet.publicKey,
+      })
+      .signers([groupHub])
+      .rpc();
+
+    const achievement = anchor.web3.Keypair.generate();
+    const achievementName = "Test Achievement";
+    const achievementDescription = "A test achievement for our protocol";
+    const achievementCriteria = "Complete 5 tasks";
+    const achievementPoints = 100;
+
+    await program.methods
+      .createAchievement(achievementName, achievementDescription, achievementCriteria, achievementPoints)
+      .accounts({
+        groupHub: groupHub.publicKey,
+        achievement: achievement.publicKey,
+        authority: provider.wallet.publicKey,
+      })
+      .signers([achievement])
+      .rpc();
+
+    const user = anchor.web3.Keypair.generate();
+    const userAchievement = anchor.web3.Keypair.generate();
+
+    await program.methods
+      .awardAchievement()
+      .accounts({
+        groupHub: groupHub.publicKey,
+        userAchievement: userAchievement.publicKey,
+        achievement: achievement.publicKey,
+        user: user.publicKey,
+        authority: provider.wallet.publicKey,
+      })
+      .signers([userAchievement])
+      .rpc();
+
+    const userAchievementAccount = await program.account.userAchievement.fetch(userAchievement.publicKey);
+    expect(userAchievementAccount.user.toString()).to.equal(user.publicKey.toString());
+    expect(userAchievementAccount.achievement.toString()).to.equal(achievement.publicKey.toString());
+    expect(userAchievementAccount.groupHub.toString()).to.equal(groupHub.publicKey.toString());
+    expect(userAchievementAccount.awardedAt.toNumber()).to.be.a('number');
+  });
 });
