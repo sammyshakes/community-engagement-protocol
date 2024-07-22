@@ -24,7 +24,7 @@ pub mod community_engagement_protocol {
 
         group_hub.name = name;
         group_hub.description = description;
-        group_hub.admin = user.key();
+        group_hub.admins = vec![user.key()];
 
         msg!("Group Hub '{}' created", group_hub.name);
         Ok(())
@@ -46,8 +46,7 @@ pub mod community_engagement_protocol {
             return Err(CepError::DescriptionTooLong.into());
         }
 
-        // Check if the user is the admin
-        if group_hub.admin != user.key() {
+        if !group_hub.admins.contains(&user.key()) {
             return Err(CepError::Unauthorized.into());
         }
 
@@ -58,15 +57,31 @@ pub mod community_engagement_protocol {
         Ok(())
     }
 
-    pub fn get_group_hub_info(ctx: Context<GetGroupHubInfo>) -> Result<()> {
+    pub fn get_group_hub_info(ctx: Context<GetGroupHubInfo>) -> Result<GroupHubInfo> {
         let group_hub = &ctx.accounts.group_hub;
-        msg!("Group Hub Name: {}", group_hub.name);
-        msg!("Group Hub Description: {}", group_hub.description);
-        msg!("Group Hub Admin: {}", group_hub.admin);
-        Ok(())
+        Ok(GroupHubInfo {
+            name: group_hub.name.clone(),
+            description: group_hub.description.clone(),
+            admins: group_hub.admins.clone(),
+        })
     }
 
-    // Other functions will be implemented in future steps
+    pub fn add_admin(ctx: Context<AddAdmin>, new_admin: Pubkey) -> Result<()> {
+        let group_hub = &mut ctx.accounts.group_hub;
+        let user = &ctx.accounts.user;
+
+        if !group_hub.admins.contains(&user.key()) {
+            return Err(CepError::Unauthorized.into());
+        }
+
+        if group_hub.admins.contains(&new_admin) {
+            return Err(CepError::AdminAlreadyExists.into());
+        }
+
+        group_hub.admins.push(new_admin);
+        msg!("New admin added to Group Hub '{}'", group_hub.name);
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -94,11 +109,25 @@ pub struct GetGroupHubInfo<'info> {
     pub group_hub: Account<'info, GroupHub>,
 }
 
+#[derive(Accounts)]
+pub struct AddAdmin<'info> {
+    #[account(mut)]
+    pub group_hub: Account<'info, GroupHub>,
+    pub user: Signer<'info>,
+}
+
 #[account]
 pub struct GroupHub {
     pub name: String,
     pub description: String,
-    pub admin: Pubkey,
+    pub admins: Vec<Pubkey>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq)]
+pub struct GroupHubInfo {
+    pub name: String,
+    pub description: String,
+    pub admins: Vec<Pubkey>,
 }
 
 #[error_code]
@@ -109,4 +138,6 @@ pub enum CepError {
     DescriptionTooLong,
     #[msg("You are not authorized to perform this action")]
     Unauthorized,
+    #[msg("This admin already exists for the group hub")]
+    AdminAlreadyExists,
 }

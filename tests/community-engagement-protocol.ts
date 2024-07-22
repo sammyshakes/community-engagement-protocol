@@ -26,7 +26,7 @@ describe("community-engagement-protocol", () => {
     const groupHubAccount = await program.account.groupHub.fetch(groupHub.publicKey);
     expect(groupHubAccount.name).to.equal(name);
     expect(groupHubAccount.description).to.equal(description);
-    expect(groupHubAccount.admin.toString()).to.equal(provider.wallet.publicKey.toString());
+    expect(groupHubAccount.admins[0].toString()).to.equal(provider.wallet.publicKey.toString());
   });
 
   it("Fails to create a group hub with a long name", async () => {
@@ -53,8 +53,7 @@ describe("community-engagement-protocol", () => {
     const groupHub = anchor.web3.Keypair.generate();
     const name = "Test Group Hub";
     const description = "A test group hub for our community engagement protocol";
-
-    // First, create the group hub
+  
     await program.methods
       .createGroupHub(name, description)
       .accounts({
@@ -63,11 +62,10 @@ describe("community-engagement-protocol", () => {
       })
       .signers([groupHub])
       .rpc();
-
-    // Now, update the group hub
+  
     const newName = "Updated Test Group Hub";
     const newDescription = "An updated test group hub for our community engagement protocol";
-
+  
     await program.methods
       .updateGroupHub(newName, newDescription)
       .accounts({
@@ -75,12 +73,12 @@ describe("community-engagement-protocol", () => {
         user: provider.wallet.publicKey,
       })
       .rpc();
-
-    // Fetch the updated group hub account
+  
     const updatedGroupHubAccount = await program.account.groupHub.fetch(groupHub.publicKey);
     expect(updatedGroupHubAccount.name).to.equal(newName);
     expect(updatedGroupHubAccount.description).to.equal(newDescription);
-    expect(updatedGroupHubAccount.admin.toString()).to.equal(provider.wallet.publicKey.toString());
+    expect(updatedGroupHubAccount.admins).to.have.lengthOf(1);
+    expect(updatedGroupHubAccount.admins[0].toString()).to.equal(provider.wallet.publicKey.toString());
   });
 
   it("Fails to update a group hub with an unauthorized user", async () => {
@@ -88,7 +86,6 @@ describe("community-engagement-protocol", () => {
     const name = "Test Group Hub";
     const description = "A test group hub for our community engagement protocol";
 
-    // First, create the group hub
     await program.methods
       .createGroupHub(name, description)
       .accounts({
@@ -98,10 +95,8 @@ describe("community-engagement-protocol", () => {
       .signers([groupHub])
       .rpc();
 
-    // Create a new user
     const unauthorizedUser = anchor.web3.Keypair.generate();
 
-    // Try to update the group hub with the unauthorized user
     try {
       await program.methods
         .updateGroupHub("New Name", "New Description")
@@ -121,8 +116,34 @@ describe("community-engagement-protocol", () => {
     const groupHub = anchor.web3.Keypair.generate();
     const name = "Test Group Hub";
     const description = "A test group hub for our community engagement protocol";
+  
+    await program.methods
+      .createGroupHub(name, description)
+      .accounts({
+        groupHub: groupHub.publicKey,
+        user: provider.wallet.publicKey,
+      })
+      .signers([groupHub])
+      .rpc();
+  
+    const groupHubInfo = await program.methods
+      .getGroupHubInfo()
+      .accounts({
+        groupHub: groupHub.publicKey,
+      })
+      .view();
+  
+    expect(groupHubInfo.name).to.equal(name);
+    expect(groupHubInfo.description).to.equal(description);
+    expect(groupHubInfo.admins).to.have.lengthOf(1);
+    expect(groupHubInfo.admins[0].toString()).to.equal(provider.wallet.publicKey.toString());
+  });
 
-    // First, create the group hub
+  it("Adds an admin to a group hub", async () => {
+    const groupHub = anchor.web3.Keypair.generate();
+    const name = "Test Group Hub";
+    const description = "A test group hub for our community engagement protocol";
+
     await program.methods
       .createGroupHub(name, description)
       .accounts({
@@ -132,18 +153,50 @@ describe("community-engagement-protocol", () => {
       .signers([groupHub])
       .rpc();
 
-    // Now, get the group hub info
+    const newAdmin = anchor.web3.Keypair.generate();
+
     await program.methods
-      .getGroupHubInfo()
+      .addAdmin(newAdmin.publicKey)
       .accounts({
         groupHub: groupHub.publicKey,
+        user: provider.wallet.publicKey,
       })
       .rpc();
 
-    // Fetch the group hub account and verify its contents
-    const groupHubAccount = await program.account.groupHub.fetch(groupHub.publicKey);
-    expect(groupHubAccount.name).to.equal(name);
-    expect(groupHubAccount.description).to.equal(description);
-    expect(groupHubAccount.admin.toString()).to.equal(provider.wallet.publicKey.toString());
+    const updatedGroupHub = await program.account.groupHub.fetch(groupHub.publicKey);
+    expect(updatedGroupHub.admins).to.have.lengthOf(2);
+    expect(updatedGroupHub.admins[1].toString()).to.equal(newAdmin.publicKey.toString());
+  });
+
+  it("Fails to add an admin with unauthorized user", async () => {
+    const groupHub = anchor.web3.Keypair.generate();
+    const name = "Test Group Hub";
+    const description = "A test group hub for our community engagement protocol";
+
+    await program.methods
+      .createGroupHub(name, description)
+      .accounts({
+        groupHub: groupHub.publicKey,
+        user: provider.wallet.publicKey,
+      })
+      .signers([groupHub])
+      .rpc();
+
+    const unauthorizedUser = anchor.web3.Keypair.generate();
+    const newAdmin = anchor.web3.Keypair.generate();
+
+    try {
+      await program.methods
+        .addAdmin(newAdmin.publicKey)
+        .accounts({
+          groupHub: groupHub.publicKey,
+          user: unauthorizedUser.publicKey,
+        })
+        .signers([unauthorizedUser])
+        .rpc();
+      expect.fail("The transaction should have failed");
+    } catch (error) {
+      expect(error.error.errorMessage).to.equal("You are not authorized to perform this action");
+    }
   });
 });
