@@ -257,7 +257,26 @@ describe("community-engagement-protocol", () => {
     expect(achievementAccount.groupHub.toString()).to.equal(groupHub.publicKey.toString());
   });
 
-  it("Awards an achievement to a user", async () => {
+  it("Initializes user achievements", async () => {
+    const user = anchor.web3.Keypair.generate();
+    const userAchievements = anchor.web3.Keypair.generate();
+
+    await program.methods
+      .initializeUserAchievements()
+      .accounts({
+        userAchievements: userAchievements.publicKey,
+        user: user.publicKey,
+        authority: provider.wallet.publicKey,
+      })
+      .signers([userAchievements, user])
+      .rpc();
+
+    const userAchievementsAccount = await program.account.userAchievements.fetch(userAchievements.publicKey);
+    expect(userAchievementsAccount.user.toString()).to.equal(user.publicKey.toString());
+    expect(userAchievementsAccount.achievements).to.be.an('array').that.is.empty;
+  });
+
+  it("Awards an achievement to a user and updates user achievements", async () => {
     const groupHub = anchor.web3.Keypair.generate();
     const name = "Test Group Hub";
     const description = "A test group hub for our community engagement protocol";
@@ -289,6 +308,18 @@ describe("community-engagement-protocol", () => {
       .rpc();
 
     const user = anchor.web3.Keypair.generate();
+    const userAchievements = anchor.web3.Keypair.generate();
+
+    await program.methods
+      .initializeUserAchievements()
+      .accounts({
+        userAchievements: userAchievements.publicKey,
+        user: user.publicKey,
+        authority: provider.wallet.publicKey,
+      })
+      .signers([userAchievements, user])
+      .rpc();
+
     const userAchievement = anchor.web3.Keypair.generate();
 
     await program.methods
@@ -297,7 +328,8 @@ describe("community-engagement-protocol", () => {
         groupHub: groupHub.publicKey,
         userAchievement: userAchievement.publicKey,
         achievement: achievement.publicKey,
-        user: user.publicKey,
+        // user: user.publicKey,
+        userAchievements: userAchievements.publicKey,
         authority: provider.wallet.publicKey,
       })
       .signers([userAchievement])
@@ -308,5 +340,127 @@ describe("community-engagement-protocol", () => {
     expect(userAchievementAccount.achievement.toString()).to.equal(achievement.publicKey.toString());
     expect(userAchievementAccount.groupHub.toString()).to.equal(groupHub.publicKey.toString());
     expect(userAchievementAccount.awardedAt.toNumber()).to.be.a('number');
+
+    const updatedUserAchievements = await program.account.userAchievements.fetch(userAchievements.publicKey);
+    expect(updatedUserAchievements.achievements).to.have.lengthOf(1);
+    expect(updatedUserAchievements.achievements[0].toString()).to.equal(achievement.publicKey.toString());
+  });
+
+  it("Lists user achievements", async () => {
+    const user = anchor.web3.Keypair.generate();
+    const userAchievements = anchor.web3.Keypair.generate();
+
+    await program.methods
+      .initializeUserAchievements()
+      .accounts({
+        userAchievements: userAchievements.publicKey,
+        user: user.publicKey,
+        authority: provider.wallet.publicKey,
+      })
+      .signers([userAchievements, user])
+      .rpc();
+
+    // Award some achievements to the user (you'll need to create these first)
+    // ... (Create group hub, achievements, and award them to the user)
+
+    const achievements = await program.methods
+      .listUserAchievements()
+      .accounts({
+        userAchievements: userAchievements.publicKey,
+        user: user.publicKey,
+      })
+      .view();
+
+    expect(achievements).to.be.an('array');
+    // Add more specific checks based on the achievements you've awarded
+  });
+
+  it("Lists achievements for a group hub", async () => {
+    const groupHub = anchor.web3.Keypair.generate();
+    const name = "Test Group Hub";
+    const description = "A test group hub for our community engagement protocol";
+
+    await program.methods
+      .createGroupHub(name, description)
+      .accounts({
+        groupHub: groupHub.publicKey,
+        groupHubList: groupHubList.publicKey,
+        user: provider.wallet.publicKey,
+      })
+      .signers([groupHub])
+      .rpc();
+
+    const achievementCount = 3;
+    const achievementKeys: anchor.web3.PublicKey[] = [];
+
+    for (let i = 0; i < achievementCount; i++) {
+      const achievement = anchor.web3.Keypair.generate();
+      await program.methods
+        .createAchievement(`Achievement ${i+1}`, `Description ${i+1}`, `Criteria ${i+1}`, 100 * (i+1))
+        .accounts({
+          groupHub: groupHub.publicKey,
+          achievement: achievement.publicKey,
+          authority: provider.wallet.publicKey,
+        })
+        .signers([achievement])
+        .rpc();
+      achievementKeys.push(achievement.publicKey);
+    }
+
+    const achievements = await program.methods
+      .listGroupHubAchievements()
+      .accounts({
+        groupHub: groupHub.publicKey,
+      })
+      .view();
+
+    expect(achievements).to.have.lengthOf(achievementCount);
+    achievementKeys.forEach(key => {
+      expect(achievements.some(a => a.equals(key))).to.be.true;
+    });
+  });
+
+  it("Gets achievement info", async () => {
+    const groupHub = anchor.web3.Keypair.generate();
+    await program.methods
+      .createGroupHub("Test Group Hub", "A test group hub")
+      .accounts({
+        groupHub: groupHub.publicKey,
+        groupHubList: groupHubList.publicKey,
+        user: provider.wallet.publicKey,
+      })
+      .signers([groupHub])
+      .rpc();
+
+    const achievement = anchor.web3.Keypair.generate();
+    const name = "Test Achievement";
+    const description = "A test achievement";
+    const criteria = "Complete the test";
+    const points = 100;
+
+    await program.methods
+      .createAchievement(name, description, criteria, points)
+      .accounts({
+        groupHub: groupHub.publicKey,
+        achievement: achievement.publicKey,
+        authority: provider.wallet.publicKey,
+      })
+      .signers([achievement])
+      .rpc();
+
+    const achievementInfo = await program.methods
+      .getAchievementInfo()
+      .accounts({
+        achievement: achievement.publicKey,
+      })
+      .view();
+
+    expect(achievementInfo.name).to.equal(name);
+    expect(achievementInfo.description).to.equal(description);
+    expect(achievementInfo.criteria).to.equal(criteria);
+    expect(achievementInfo.points).to.equal(points);
+    expect(achievementInfo.groupHub.toString()).to.equal(groupHub.publicKey.toString());
+    expect(achievementInfo.createdAt.toNumber()).to.be.a('number');
+    expect(achievementInfo.updatedAt.toNumber()).to.be.a('number');
   });
 });

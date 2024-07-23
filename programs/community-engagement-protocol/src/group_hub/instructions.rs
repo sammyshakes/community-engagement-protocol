@@ -75,6 +75,11 @@ pub fn list_all_group_hubs(ctx: Context<ListAllGroupHubs>) -> Result<Vec<Pubkey>
     Ok(ctx.accounts.group_hub_list.get_all())
 }
 
+pub fn list_group_hub_achievements(ctx: Context<ListGroupHubAchievements>) -> Result<Vec<Pubkey>> {
+    let group_hub = &ctx.accounts.group_hub;
+    Ok(group_hub.achievements.clone())
+}
+
 pub fn add_admin(ctx: Context<AddAdmin>, new_admin: Pubkey) -> Result<()> {
     let group_hub = &mut ctx.accounts.group_hub;
     let user = &ctx.accounts.user;
@@ -156,6 +161,11 @@ pub struct GetGroupHubInfo<'info> {
 #[derive(Accounts)]
 pub struct ListAllGroupHubs<'info> {
     pub group_hub_list: Account<'info, GroupHubList>,
+}
+
+#[derive(Accounts)]
+pub struct ListGroupHubAchievements<'info> {
+    pub group_hub: Account<'info, GroupHub>,
 }
 
 #[derive(Accounts)]

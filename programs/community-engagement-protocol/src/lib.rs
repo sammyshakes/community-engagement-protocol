@@ -65,4 +65,22 @@ pub mod community_engagement_protocol {
     pub fn award_achievement(ctx: Context<AwardAchievement>) -> Result<()> {
         achievement::instructions::award_achievement(ctx)
     }
+
+    pub fn list_group_hub_achievements(
+        ctx: Context<ListGroupHubAchievements>,
+    ) -> Result<Vec<Pubkey>> {
+        group_hub::instructions::list_group_hub_achievements(ctx)
+    }
+
+    pub fn get_achievement_info(ctx: Context<GetAchievementInfo>) -> Result<AchievementInfo> {
+        achievement::instructions::get_achievement_info(ctx)
+    }
+
+    pub fn list_user_achievements(ctx: Context<ListUserAchievements>) -> Result<Vec<Pubkey>> {
+        achievement::instructions::list_user_achievements(ctx)
+    }
+
+    pub fn initialize_user_achievements(ctx: Context<InitializeUserAchievements>) -> Result<()> {
+        achievement::instructions::initialize_user_achievements(ctx)
+    }
 }
