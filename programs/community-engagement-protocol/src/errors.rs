@@ -16,4 +16,6 @@ pub enum CepError {
     CannotRemoveLastAdmin,
     #[msg("Achievement not found")]
     AchievementNotFound,
+    #[msg("A maximum of 5 tags are allowed")]
+    TooManyTags,
 }

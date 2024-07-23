@@ -23,8 +23,20 @@ pub mod community_engagement_protocol {
         ctx: Context<CreateGroupHub>,
         name: String,
         description: String,
+        website: Option<String>,
+        social_media: Option<String>,
+        category: Option<String>,
+        tags: Vec<String>,
     ) -> Result<()> {
-        group_hub::instructions::create_group_hub(ctx, name, description)
+        group_hub::instructions::create_group_hub(
+            ctx,
+            name,
+            description,
+            website,
+            social_media,
+            category,
+            tags,
+        )
     }
 
     pub fn update_group_hub(

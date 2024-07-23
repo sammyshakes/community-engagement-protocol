@@ -41,7 +41,14 @@ describe("community-engagement-protocol", () => {
     const description = "A test group hub for our community engagement protocol";
 
     await program.methods
-      .createGroupHub(name, description)
+      .createGroupHub(
+        name, 
+        description,
+        null,  // website
+        null,  // social_media
+        null,  // category
+        []     // tags
+      )
       .accounts({
         groupHub: groupHub.publicKey,
         groupHubList: groupHubList.publicKey,
@@ -59,13 +66,50 @@ describe("community-engagement-protocol", () => {
     expect(groupHubAccount.admins[0].toString()).to.equal(provider.wallet.publicKey.toString());
   });
 
+  it("Creates a group hub with enhanced metadata", async () => {
+    const groupHub = anchor.web3.Keypair.generate();
+    const name = "Enhanced Test Group Hub";
+    const description = "A test group hub with enhanced metadata";
+    const website = "https://testhub.com";
+    const socialMedia = "@testhub";
+    const category = "Technology";
+    const tags = ["test", "community", "engagement"];
+
+    await program.methods
+      .createGroupHub(name, description, website, socialMedia, category, tags)
+      .accounts({
+        groupHub: groupHub.publicKey,
+        groupHubList: groupHubList.publicKey,
+        user: provider.wallet.publicKey,
+      })
+      .signers([groupHub])
+      .rpc();
+
+    log("Created Enhanced GroupHub with publicKey:", groupHub.publicKey.toBase58());
+
+    const groupHubAccount = await program.account.groupHub.fetch(groupHub.publicKey);
+    log("Enhanced GroupHub Account:", groupHubAccount);
+    
+    expect(groupHubAccount.name).to.equal(name);
+    expect(groupHubAccount.description).to.equal(description);
+    expect(groupHubAccount.admins[0].toString()).to.equal(provider.wallet.publicKey.toString());
+    expect(groupHubAccount.metadata.website).to.equal(website);
+    expect(groupHubAccount.metadata.socialMedia).to.equal(socialMedia);
+    expect(groupHubAccount.metadata.category).to.equal(category);
+    expect(groupHubAccount.metadata.tags).to.deep.equal(tags);
+    expect(groupHubAccount.creationDate.toNumber()).to.be.greaterThan(0);
+    expect(groupHubAccount.lastUpdated.toNumber()).to.be.greaterThan(0);
+
+    log("Enhanced GroupHub metadata:", groupHubAccount.metadata);
+  });
+
   it("Updates a group hub", async () => {
     const groupHub = anchor.web3.Keypair.generate();
     const name = "Test Group Hub";
     const description = "A test group hub for our community engagement protocol";
   
     await program.methods
-      .createGroupHub(name, description)
+      .createGroupHub(name, description, null, null, null, [])
       .accounts({
         groupHub: groupHub.publicKey,
         groupHubList: groupHubList.publicKey,
@@ -101,7 +145,7 @@ describe("community-engagement-protocol", () => {
     const description = "A test group hub for our community engagement protocol";
   
     await program.methods
-      .createGroupHub(name, description)
+      .createGroupHub(name, description, null, null, null, [])
       .accounts({
         groupHub: groupHub.publicKey,
         groupHubList: groupHubList.publicKey,
@@ -134,7 +178,7 @@ describe("community-engagement-protocol", () => {
     for (let i = 0; i < newHubCount; i++) {
       const groupHub = anchor.web3.Keypair.generate();
       await program.methods
-        .createGroupHub(`Hub ${i+1}`, `Description for Hub ${i+1}`)
+        .createGroupHub(`Hub ${i+1}`, `Description for Hub ${i+1}`, null, null, null, [])
         .accounts({
           groupHub: groupHub.publicKey,
           groupHubList: groupHubList.publicKey,
@@ -166,7 +210,7 @@ describe("community-engagement-protocol", () => {
     const description = "A test group hub for our community engagement protocol";
 
     await program.methods
-      .createGroupHub(name, description)
+      .createGroupHub(name, description, null, null, null, [])
       .accounts({
         groupHub: groupHub.publicKey,
         groupHubList: groupHubList.publicKey,
@@ -201,7 +245,7 @@ describe("community-engagement-protocol", () => {
     const description = "A test group hub for our community engagement protocol";
 
     await program.methods
-      .createGroupHub(name, description)
+      .createGroupHub(name, description, null, null, null, [])
       .accounts({
         groupHub: groupHub.publicKey,
         groupHubList: groupHubList.publicKey,
@@ -246,7 +290,7 @@ describe("community-engagement-protocol", () => {
     const description = "A test group hub for our community engagement protocol";
 
     await program.methods
-      .createGroupHub(name, description)
+      .createGroupHub(name, description, null, null, null, [])
       .accounts({
         groupHub: groupHub.publicKey,
         groupHubList: groupHubList.publicKey,
@@ -312,7 +356,7 @@ describe("community-engagement-protocol", () => {
     const description = "A test group hub for our community engagement protocol";
 
     await program.methods
-      .createGroupHub(name, description)
+      .createGroupHub(name, description, null, null, null, [])
       .accounts({
         groupHub: groupHub.publicKey,
         groupHubList: groupHubList.publicKey,
@@ -424,7 +468,7 @@ describe("community-engagement-protocol", () => {
     const description = "A test group hub for our community engagement protocol";
 
     await program.methods
-      .createGroupHub(name, description)
+      .createGroupHub(name, description, null, null, null, [])
       .accounts({
         groupHub: groupHub.publicKey,
         groupHubList: groupHubList.publicKey,
@@ -472,7 +516,7 @@ describe("community-engagement-protocol", () => {
   it("Gets achievement info", async () => {
     const groupHub = anchor.web3.Keypair.generate();
     await program.methods
-      .createGroupHub("Test Group Hub", "A test group hub")
+      .createGroupHub("Test Group Hub", "A test group hub", null, null, null, [])
       .accounts({
         groupHub: groupHub.publicKey,
         groupHubList: groupHubList.publicKey,

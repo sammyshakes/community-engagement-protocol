@@ -6,6 +6,9 @@ pub struct GroupHub {
     pub description: String,
     pub admins: Vec<Pubkey>,
     pub achievements: Vec<Pubkey>,
+    pub creation_date: i64,
+    pub last_updated: i64,
+    pub metadata: GroupHubMetadata,
 }
 
 #[account]
@@ -29,4 +32,12 @@ pub struct GroupHubInfo {
     pub description: String,
     pub admins: Vec<Pubkey>,
     pub achievements: Vec<Pubkey>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct GroupHubMetadata {
+    pub website: Option<String>,
+    pub social_media: Option<String>,
+    pub category: Option<String>,
+    pub tags: Vec<String>,
 }

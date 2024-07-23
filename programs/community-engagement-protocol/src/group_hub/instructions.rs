@@ -12,9 +12,14 @@ pub fn create_group_hub(
     ctx: Context<CreateGroupHub>,
     name: String,
     description: String,
+    website: Option<String>,
+    social_media: Option<String>,
+    category: Option<String>,
+    tags: Vec<String>,
 ) -> Result<()> {
     let group_hub = &mut ctx.accounts.group_hub;
     let user = &ctx.accounts.user;
+    let clock = Clock::get()?;
 
     if name.chars().count() > 50 {
         return Err(CepError::NameTooLong.into());
@@ -24,9 +29,22 @@ pub fn create_group_hub(
         return Err(CepError::DescriptionTooLong.into());
     }
 
+    if tags.len() > 5 {
+        return Err(CepError::TooManyTags.into());
+    }
+
     group_hub.name = name;
     group_hub.description = description;
     group_hub.admins = vec![user.key()];
+    group_hub.achievements = Vec::new();
+    group_hub.creation_date = clock.unix_timestamp;
+    group_hub.last_updated = clock.unix_timestamp;
+    group_hub.metadata = GroupHubMetadata {
+        website,
+        social_media,
+        category,
+        tags,
+    };
 
     ctx.accounts.group_hub_list.add(group_hub.key());
 
@@ -136,7 +154,17 @@ pub struct CreateGroupHub<'info> {
     #[account(
         init,
         payer = user,
-        space = 8 + 50 + 4 + 200 + 4 + 32 // discriminator + name + description + admin
+        space = 8 + // discriminator
+                50 + // name (String)
+                200 + // description (String)
+                32 + (4 + 32 * 10) + // admins (Vec<Pubkey>)
+                32 + (4 + 32 * 50) + // achievements (Vec<Pubkey>)
+                8 + // creation_date (i64)
+                8 + // last_updated (i64)
+                (1 + 50) + // website (Option<String>)
+                (1 + 50) + // social_media (Option<String>)
+                (1 + 20) + // category (Option<String>)
+                (4 + 5 * 20) // tags (Vec<String>)
     )]
     pub group_hub: Account<'info, GroupHub>,
     #[account(mut)]
