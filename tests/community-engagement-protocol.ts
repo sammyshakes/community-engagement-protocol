@@ -3,6 +3,14 @@ import { Program } from "@coral-xyz/anchor";
 import { CommunityEngagementProtocol } from "../target/types/community_engagement_protocol";
 import { expect } from 'chai';
 
+const DEBUG = false;
+
+function log(...args: any[]) {
+  if (DEBUG) {
+    console.log(...args);
+  }
+}
+
 describe("community-engagement-protocol", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -23,6 +31,8 @@ describe("community-engagement-protocol", () => {
       })
       .signers([groupHubList])
       .rpc();
+
+    log("Initialized GroupHubList with publicKey:", groupHubList.publicKey.toBase58());
   });
 
   it("Creates a group hub", async () => {
@@ -40,7 +50,10 @@ describe("community-engagement-protocol", () => {
       .signers([groupHub])
       .rpc();
 
+    log("Created GroupHub with publicKey:", groupHub.publicKey.toBase58());
+
     const groupHubAccount = await program.account.groupHub.fetch(groupHub.publicKey);
+    log("GroupHub Account:", groupHubAccount);
     expect(groupHubAccount.name).to.equal(name);
     expect(groupHubAccount.description).to.equal(description);
     expect(groupHubAccount.admins[0].toString()).to.equal(provider.wallet.publicKey.toString());
@@ -61,6 +74,8 @@ describe("community-engagement-protocol", () => {
       .signers([groupHub])
       .rpc();
   
+    log("Created GroupHub for update test with publicKey:", groupHub.publicKey.toBase58());
+
     const newName = "Updated Test Group Hub";
     const newDescription = "An updated test group hub for our community engagement protocol";
   
@@ -72,7 +87,10 @@ describe("community-engagement-protocol", () => {
       })
       .rpc();
   
+    log("Updated GroupHub with publicKey:", groupHub.publicKey.toBase58());
+
     const updatedGroupHubAccount = await program.account.groupHub.fetch(groupHub.publicKey);
+    log("Updated GroupHub Account:", updatedGroupHubAccount);
     expect(updatedGroupHubAccount.name).to.equal(newName);
     expect(updatedGroupHubAccount.description).to.equal(newDescription);
   });
@@ -91,14 +109,12 @@ describe("community-engagement-protocol", () => {
       })
       .signers([groupHub])
       .rpc();
+
+    log("Created GroupHub for get info test with publicKey:", groupHub.publicKey.toBase58());
   
-    const groupHubInfo = await program.methods
-      .getGroupHubInfo()
-      .accounts({
-        groupHub: groupHub.publicKey,
-      })
-      .view();
-  
+    const groupHubInfo = await program.account.groupHub.fetch(groupHub.publicKey);
+    log("GroupHub Info:", groupHubInfo);
+
     expect(groupHubInfo.name).to.equal(name);
     expect(groupHubInfo.description).to.equal(description);
     expect(groupHubInfo.admins).to.have.lengthOf(1);
@@ -107,14 +123,10 @@ describe("community-engagement-protocol", () => {
 
   it("Lists all group hubs", async () => {
     // Get initial count of group hubs
-    const initialHubs = await program.methods
-      .listAllGroupHubs()
-      .accounts({
-        groupHubList: groupHubList.publicKey,
-      })
-      .view();
-  
-    const initialCount = initialHubs.length;
+    const initialHubs = await program.account.groupHubList.fetch(groupHubList.publicKey);
+    log("Initial GroupHubs:", initialHubs);
+
+    const initialCount = initialHubs.groupHubs.length;
   
     // Create multiple group hubs
     const newHubCount = 3;
@@ -130,23 +142,21 @@ describe("community-engagement-protocol", () => {
         })
         .signers([groupHub])
         .rpc();
+
+      log(`Created GroupHub ${i+1} with publicKey:`, groupHub.publicKey.toBase58());
       hubKeys.push(groupHub.publicKey);
     }
   
     // List all group hubs
-    const allGroupHubs = await program.methods
-      .listAllGroupHubs()
-      .accounts({
-        groupHubList: groupHubList.publicKey,
-      })
-      .view();
-  
+    const allGroupHubs = await program.account.groupHubList.fetch(groupHubList.publicKey);
+    log("All GroupHubs:", allGroupHubs);
+
     // Check that the correct number of new hubs were added
-    expect(allGroupHubs.length).to.equal(initialCount + newHubCount);
+    expect(allGroupHubs.groupHubs.length).to.equal(initialCount + newHubCount);
   
     // Check that the new hub keys are in the list
     hubKeys.forEach(hubKey => {
-      expect(allGroupHubs.some(listedKey => listedKey.equals(hubKey))).to.be.true;
+      expect(allGroupHubs.groupHubs.some(listedKey => listedKey.equals(hubKey))).to.be.true;
     });
   });
 
@@ -165,6 +175,8 @@ describe("community-engagement-protocol", () => {
       .signers([groupHub])
       .rpc();
 
+    log("Created GroupHub for add admin test with publicKey:", groupHub.publicKey.toBase58());
+
     const newAdmin = anchor.web3.Keypair.generate();
 
     await program.methods
@@ -175,7 +187,10 @@ describe("community-engagement-protocol", () => {
       })
       .rpc();
 
+    log("Added new admin with publicKey:", newAdmin.publicKey.toBase58());
+
     const updatedGroupHub = await program.account.groupHub.fetch(groupHub.publicKey);
+    log("Updated GroupHub Account after adding admin:", updatedGroupHub);
     expect(updatedGroupHub.admins).to.have.lengthOf(2);
     expect(updatedGroupHub.admins[1].toString()).to.equal(newAdmin.publicKey.toString());
   });
@@ -195,6 +210,8 @@ describe("community-engagement-protocol", () => {
       .signers([groupHub])
       .rpc();
 
+    log("Created GroupHub for remove admin test with publicKey:", groupHub.publicKey.toBase58());
+
     const newAdmin = anchor.web3.Keypair.generate();
 
     await program.methods
@@ -205,6 +222,8 @@ describe("community-engagement-protocol", () => {
       })
       .rpc();
 
+    log("Added new admin with publicKey:", newAdmin.publicKey.toBase58());
+
     await program.methods
       .removeAdmin(newAdmin.publicKey)
       .accounts({
@@ -213,7 +232,10 @@ describe("community-engagement-protocol", () => {
       })
       .rpc();
 
+    log("Removed admin with publicKey:", newAdmin.publicKey.toBase58());
+
     const updatedGroupHub = await program.account.groupHub.fetch(groupHub.publicKey);
+    log("Updated GroupHub Account after removing admin:", updatedGroupHub);
     expect(updatedGroupHub.admins).to.have.lengthOf(1);
     expect(updatedGroupHub.admins[0].toString()).to.equal(provider.wallet.publicKey.toString());
   });
@@ -233,6 +255,8 @@ describe("community-engagement-protocol", () => {
       .signers([groupHub])
       .rpc();
 
+    log("Created GroupHub for achievement test with publicKey:", groupHub.publicKey.toBase58());
+
     const achievement = anchor.web3.Keypair.generate();
     const achievementName = "Test Achievement";
     const achievementDescription = "A test achievement for our protocol";
@@ -249,7 +273,10 @@ describe("community-engagement-protocol", () => {
       .signers([achievement])
       .rpc();
 
+    log("Created Achievement with publicKey:", achievement.publicKey.toBase58());
+
     const achievementAccount = await program.account.achievement.fetch(achievement.publicKey);
+    log("Achievement Account:", achievementAccount);
     expect(achievementAccount.name).to.equal(achievementName);
     expect(achievementAccount.description).to.equal(achievementDescription);
     expect(achievementAccount.criteria).to.equal(achievementCriteria);
@@ -271,7 +298,10 @@ describe("community-engagement-protocol", () => {
       .signers([userAchievements, user])
       .rpc();
 
+    log("Initialized UserAchievements with publicKey:", userAchievements.publicKey.toBase58());
+
     const userAchievementsAccount = await program.account.userAchievements.fetch(userAchievements.publicKey);
+    log("UserAchievements Account:", userAchievementsAccount);
     expect(userAchievementsAccount.user.toString()).to.equal(user.publicKey.toString());
     expect(userAchievementsAccount.achievements).to.be.an('array').that.is.empty;
   });
@@ -291,6 +321,8 @@ describe("community-engagement-protocol", () => {
       .signers([groupHub])
       .rpc();
 
+    log("Created GroupHub for award achievement test with publicKey:", groupHub.publicKey.toBase58());
+
     const achievement = anchor.web3.Keypair.generate();
     const achievementName = "Test Achievement";
     const achievementDescription = "A test achievement for our protocol";
@@ -307,6 +339,8 @@ describe("community-engagement-protocol", () => {
       .signers([achievement])
       .rpc();
 
+    log("Created Achievement for award test with publicKey:", achievement.publicKey.toBase58());
+
     const user = anchor.web3.Keypair.generate();
     const userAchievements = anchor.web3.Keypair.generate();
 
@@ -320,6 +354,8 @@ describe("community-engagement-protocol", () => {
       .signers([userAchievements, user])
       .rpc();
 
+    log("Initialized UserAchievements for award test with publicKey:", userAchievements.publicKey.toBase58());
+
     const userAchievement = anchor.web3.Keypair.generate();
 
     await program.methods
@@ -328,20 +364,23 @@ describe("community-engagement-protocol", () => {
         groupHub: groupHub.publicKey,
         userAchievement: userAchievement.publicKey,
         achievement: achievement.publicKey,
-        // user: user.publicKey,
         userAchievements: userAchievements.publicKey,
         authority: provider.wallet.publicKey,
       })
       .signers([userAchievement])
       .rpc();
 
+    log("Awarded Achievement to user with userAchievement publicKey:", userAchievement.publicKey.toBase58());
+
     const userAchievementAccount = await program.account.userAchievement.fetch(userAchievement.publicKey);
+    log("UserAchievement Account:", userAchievementAccount);
     expect(userAchievementAccount.user.toString()).to.equal(user.publicKey.toString());
     expect(userAchievementAccount.achievement.toString()).to.equal(achievement.publicKey.toString());
     expect(userAchievementAccount.groupHub.toString()).to.equal(groupHub.publicKey.toString());
     expect(userAchievementAccount.awardedAt.toNumber()).to.be.a('number');
 
     const updatedUserAchievements = await program.account.userAchievements.fetch(userAchievements.publicKey);
+    log("Updated UserAchievements Account after awarding achievement:", updatedUserAchievements);
     expect(updatedUserAchievements.achievements).to.have.lengthOf(1);
     expect(updatedUserAchievements.achievements[0].toString()).to.equal(achievement.publicKey.toString());
   });
@@ -360,7 +399,9 @@ describe("community-engagement-protocol", () => {
       .signers([userAchievements, user])
       .rpc();
 
-    // Award some achievements to the user (you'll need to create these first)
+    log("Initialized UserAchievements for listing test with publicKey:", userAchievements.publicKey.toBase58());
+
+    // Award some achievements to the user (TODO: create these first)
     // ... (Create group hub, achievements, and award them to the user)
 
     const achievements = await program.methods
@@ -370,6 +411,8 @@ describe("community-engagement-protocol", () => {
         user: user.publicKey,
       })
       .view();
+
+    log("Listed User Achievements:", achievements);
 
     expect(achievements).to.be.an('array');
     // Add more specific checks based on the achievements you've awarded
@@ -390,6 +433,8 @@ describe("community-engagement-protocol", () => {
       .signers([groupHub])
       .rpc();
 
+    log("Created GroupHub for listing achievements test with publicKey:", groupHub.publicKey.toBase58());
+
     const achievementCount = 3;
     const achievementKeys: anchor.web3.PublicKey[] = [];
 
@@ -404,6 +449,8 @@ describe("community-engagement-protocol", () => {
         })
         .signers([achievement])
         .rpc();
+
+      log(`Created Achievement ${i+1} with publicKey:`, achievement.publicKey.toBase58());
       achievementKeys.push(achievement.publicKey);
     }
 
@@ -413,6 +460,8 @@ describe("community-engagement-protocol", () => {
         groupHub: groupHub.publicKey,
       })
       .view();
+
+    log("Listed GroupHub Achievements:", achievements);
 
     expect(achievements).to.have.lengthOf(achievementCount);
     achievementKeys.forEach(key => {
@@ -432,6 +481,8 @@ describe("community-engagement-protocol", () => {
       .signers([groupHub])
       .rpc();
 
+    log("Created GroupHub for get achievement info test with publicKey:", groupHub.publicKey.toBase58());
+
     const achievement = anchor.web3.Keypair.generate();
     const name = "Test Achievement";
     const description = "A test achievement";
@@ -448,12 +499,16 @@ describe("community-engagement-protocol", () => {
       .signers([achievement])
       .rpc();
 
+    log("Created Achievement for get info test with publicKey:", achievement.publicKey.toBase58());
+
     const achievementInfo = await program.methods
       .getAchievementInfo()
       .accounts({
         achievement: achievement.publicKey,
       })
       .view();
+
+    log("Achievement Info:", achievementInfo);
 
     expect(achievementInfo.name).to.equal(name);
     expect(achievementInfo.description).to.equal(description);
@@ -463,4 +518,5 @@ describe("community-engagement-protocol", () => {
     expect(achievementInfo.createdAt.toNumber()).to.be.a('number');
     expect(achievementInfo.updatedAt.toNumber()).to.be.a('number');
   });
+
 });
