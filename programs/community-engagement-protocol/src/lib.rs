@@ -3,10 +3,12 @@ use anchor_lang::prelude::*;
 pub mod achievement;
 pub mod errors;
 pub mod group_hub;
+pub mod reward;
 
 use achievement::instructions::*;
 use group_hub::instructions::*;
 use group_hub::state::GroupHubInfo;
+use reward::instructions::*;
 
 declare_id!("7FQ74JMt2Eeca2RD2aLVBv4No8e9PUt8SHfGsUzKhqje");
 
@@ -127,5 +129,23 @@ pub mod community_engagement_protocol {
 
     pub fn initialize_user_achievements(ctx: Context<InitializeUserAchievements>) -> Result<()> {
         achievement::instructions::initialize_user_achievements(ctx)
+    }
+
+    // Reward Instructions
+    pub fn initialize_user_rewards(ctx: Context<InitializeUserRewards>) -> Result<()> {
+        reward::instructions::initialize_user_rewards(ctx)
+    }
+
+    pub fn create_fungible_reward(
+        ctx: Context<CreateFungibleReward>,
+        name: String,
+        description: String,
+        supply: u64,
+    ) -> Result<()> {
+        reward::instructions::create_fungible_reward(ctx, name, description, supply)
+    }
+
+    pub fn issue_fungible_reward(ctx: Context<IssueFungibleReward>, amount: u64) -> Result<()> {
+        reward::instructions::issue_fungible_reward(ctx, amount)
     }
 }

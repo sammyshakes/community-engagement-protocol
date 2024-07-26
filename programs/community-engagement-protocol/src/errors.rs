@@ -1,3 +1,5 @@
+// File: src/errors.rs
+
 use anchor_lang::prelude::*;
 
 #[error_code]
@@ -20,4 +22,11 @@ pub enum CepError {
     AchievementNotFound,
     #[msg("A maximum of 5 tags are allowed")]
     TooManyTags,
+    // New errors for rewards
+    #[msg("Reward not found")]
+    RewardNotFound,
+    #[msg("Invalid reward type")]
+    InvalidRewardType,
+    #[msg("Insufficient reward supply")]
+    InsufficientRewardSupply,
 }
