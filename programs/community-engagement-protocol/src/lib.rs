@@ -74,8 +74,41 @@ pub mod community_engagement_protocol {
         achievement::instructions::create_achievement(ctx, name, description, criteria, points)
     }
 
-    pub fn award_achievement(ctx: Context<AwardAchievement>) -> Result<()> {
-        achievement::instructions::award_achievement(ctx)
+    pub fn create_fungible_achievement(
+        ctx: Context<CreateFungibleAchievement>,
+        name: String,
+        description: String,
+        criteria: String,
+        points: u32,
+        supply: u64,
+    ) -> Result<()> {
+        achievement::create_fungible_achievement(ctx, name, description, criteria, points, supply)
+    }
+
+    pub fn create_non_fungible_achievement(
+        ctx: Context<CreateNonFungibleAchievement>,
+        name: String,
+        description: String,
+        criteria: String,
+        points: u32,
+        metadata_uri: String,
+    ) -> Result<()> {
+        achievement::instructions::create_non_fungible_achievement(
+            ctx,
+            name,
+            description,
+            criteria,
+            points,
+            metadata_uri,
+        )
+    }
+
+    pub fn award_fungible_achievement(ctx: Context<AwardFungibleAchievement>) -> Result<()> {
+        achievement::instructions::award_fungible_achievement(ctx)
+    }
+
+    pub fn award_non_fungible_achievement(ctx: Context<AwardNonFungibleAchievement>) -> Result<()> {
+        achievement::instructions::award_non_fungible_achievement(ctx)
     }
 
     pub fn list_group_hub_achievements(
