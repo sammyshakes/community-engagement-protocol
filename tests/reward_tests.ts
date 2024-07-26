@@ -5,7 +5,6 @@ import { expect } from 'chai';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 describe("Reward Tests", () => {
-  // Configure the client to use the local cluster.
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
@@ -50,7 +49,7 @@ describe("Reward Tests", () => {
   it("Creates a fungible reward", async () => {
     const reward = anchor.web3.Keypair.generate();
     const tokenMint = anchor.web3.Keypair.generate();
-
+  
     await program.methods
       .createFungibleReward(
         "Test Fungible Reward",
@@ -68,14 +67,54 @@ describe("Reward Tests", () => {
       })
       .signers([reward, tokenMint])
       .rpc();
-
+  
     // Fetch and check the reward account
     const rewardAccount = await program.account.reward.fetch(reward.publicKey);
     expect(rewardAccount.name).to.equal("Test Fungible Reward");
     expect(rewardAccount.description).to.equal("A test fungible reward");
-    expect(rewardAccount.rewardType).to.deep.equal({ fungible: {} });
-    expect(rewardAccount.tokenMint.toString()).to.equal(tokenMint.publicKey.toString());
-    expect(rewardAccount.tokenSupply.toString()).to.equal("1000000");
+    
+    // Check the reward type
+    expect(rewardAccount.rewardType).to.have.property('fungible');
+    const fungibleReward = rewardAccount.rewardType.fungible;
+    expect(fungibleReward.tokenMint.toString()).to.equal(tokenMint.publicKey.toString());
+    
+    // Check the token supply
+    // Note: The actual type might be BN, so we convert it to a string for comparison
+    expect(fungibleReward.tokenSupply.toString()).to.equal('1000000');
+  });
+
+  it("Creates a non-fungible reward", async () => {
+    const reward = anchor.web3.Keypair.generate();
+    const tokenMint = anchor.web3.Keypair.generate();
+
+    await program.methods
+      .createNonFungibleReward(
+        "Test Non-Fungible Reward",
+        "A test non-fungible reward",
+        "https://example.com/metadata.json"
+      )
+      .accounts({
+        groupHub: groupHub.publicKey,
+        reward: reward.publicKey,
+        tokenMint: tokenMint.publicKey,
+        authority: provider.wallet.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      })
+      .signers([reward, tokenMint])
+      .rpc();
+
+    // Fetch and check the reward account
+  const rewardAccount = await program.account.reward.fetch(reward.publicKey);
+  expect(rewardAccount.name).to.equal("Test Non-Fungible Reward");
+  expect(rewardAccount.description).to.equal("A test non-fungible reward");
+  
+  // Check the reward type
+  expect(rewardAccount.rewardType).to.have.property('nonFungible');
+  const nonFungibleReward = rewardAccount.rewardType.nonFungible;
+  expect(nonFungibleReward.tokenMint.toString()).to.equal(tokenMint.publicKey.toString());
+  expect(nonFungibleReward.metadataUri).to.equal("https://example.com/metadata.json");
   });
 
   it("Issues a fungible reward", async () => {

@@ -148,4 +148,13 @@ pub mod community_engagement_protocol {
     pub fn issue_fungible_reward(ctx: Context<IssueFungibleReward>, amount: u64) -> Result<()> {
         reward::instructions::issue_fungible_reward(ctx, amount)
     }
+
+    pub fn create_non_fungible_reward(
+        ctx: Context<CreateNonFungibleReward>,
+        name: String,
+        description: String,
+        metadata_uri: String,
+    ) -> Result<()> {
+        reward::instructions::create_non_fungible_reward(ctx, name, description, metadata_uri)
+    }
 }

@@ -2,8 +2,14 @@ use anchor_lang::prelude::*;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq)]
 pub enum RewardType {
-    Fungible,
-    NonFungible,
+    Fungible {
+        token_mint: Pubkey,
+        token_supply: u64,
+    },
+    NonFungible {
+        token_mint: Pubkey,
+        metadata_uri: String,
+    },
 }
 
 #[account]
@@ -12,9 +18,6 @@ pub struct Reward {
     pub name: String,
     pub description: String,
     pub reward_type: RewardType,
-    pub token_mint: Option<Pubkey>,
-    pub token_supply: Option<u64>,
-    pub metadata_uri: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
 }
