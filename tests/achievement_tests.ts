@@ -150,8 +150,6 @@ describe("Achievement Tests", () => {
         achievement: achievement.publicKey,
         tokenMint: tokenMint.publicKey,
         authority: provider.wallet.publicKey,
-        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
       })
       .signers([achievement, tokenMint])
       .rpc();
@@ -186,10 +184,6 @@ describe("Achievement Tests", () => {
         userAchievements: userAchievements.publicKey,
         authority: provider.wallet.publicKey,
         tokenMint: tokenMint.publicKey,
-        userTokenAccount: userTokenAccount,
-        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-        associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
       })
       .signers([userAchievement])
       .rpc();
@@ -286,14 +280,9 @@ describe("Achievement Tests", () => {
           groupHub: groupHub.publicKey,
           achievement: achievement.publicKey,
           tokenMint: tokenMint.publicKey,
-          tokenAccount: tokenAccount,
           metadataAccount: metadataAccount,
           masterEditionAccount: masterEditionAccount,
           authority: provider.wallet.publicKey,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
-          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
         })
         .signers([achievement, tokenMint])
         .rpc();
