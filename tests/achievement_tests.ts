@@ -2,7 +2,6 @@
 import { expect } from 'chai';
 import * as anchor from "@coral-xyz/anchor";
 import { program, provider, groupHubList, initializeGroupHubList, log, TOKEN_METADATA_PROGRAM_ID } from './common';
-import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 describe("Achievement Tests", () => {
   before(initializeGroupHubList);

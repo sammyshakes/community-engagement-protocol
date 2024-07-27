@@ -2,7 +2,6 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { CommunityEngagementProtocol } from "../target/types/community_engagement_protocol";
 import { expect } from 'chai';
-import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 type RewardType = {
     fungible?: {
