@@ -157,4 +157,8 @@ pub mod community_engagement_protocol {
     ) -> Result<()> {
         reward::instructions::create_non_fungible_reward(ctx, name, description, metadata_uri)
     }
+
+    pub fn issue_non_fungible_reward(ctx: Context<IssueNonFungibleReward>) -> Result<()> {
+        reward::instructions::issue_non_fungible_reward(ctx)
+    }
 }

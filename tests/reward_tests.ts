@@ -21,6 +21,7 @@ type RewardAccount = {
     rewardType: RewardType;
     createdAt: anchor.BN;
     updatedAt: anchor.BN;
+    issuedCount: anchor.BN;
   };
 
 describe("Reward Tests", () => {
@@ -200,6 +201,80 @@ describe("Reward Tests", () => {
     const userTokenAccountInfo = await provider.connection.getTokenAccountBalance(userTokenAccount);
     expect(userTokenAccountInfo.value.uiAmount).to.equal(100);
 
+    const updatedUserRewards = await program.account.userRewards.fetch(userRewards.publicKey);
+    expect(updatedUserRewards.rewards).to.have.lengthOf(1);
+    expect(updatedUserRewards.rewards[0].toString()).to.equal(reward.publicKey.toString());
+  });
+
+  it("Issues a non-fungible reward", async () => {
+    const reward = anchor.web3.Keypair.generate();
+    const tokenMint = anchor.web3.Keypair.generate();
+    const user = anchor.web3.Keypair.generate();
+    const userRewards = anchor.web3.Keypair.generate();
+    const rewardInstance = anchor.web3.Keypair.generate();
+  
+    // Airdrop some SOL to the user for rent
+    const signature = await provider.connection.requestAirdrop(user.publicKey, 1000000000);
+    await provider.connection.confirmTransaction(signature);
+  
+    // First, create the non-fungible reward
+    await program.methods
+      .createNonFungibleReward(
+        "Test Non-Fungible Reward",
+        "A test non-fungible reward",
+        "https://example.com/metadata.json"
+      )
+      .accounts({
+        groupHub: groupHub.publicKey,
+        reward: reward.publicKey,
+        tokenMint: tokenMint.publicKey,
+        authority: provider.wallet.publicKey,
+      })
+      .signers([reward, tokenMint])
+      .rpc();
+  
+    // Initialize user rewards if not already done
+    await program.methods
+      .initializeUserRewards()
+      .accounts({
+        userRewards: userRewards.publicKey,
+        user: user.publicKey,
+        authority: provider.wallet.publicKey,
+      })
+      .signers([userRewards, user])
+      .rpc();
+  
+    // Issue the non-fungible reward
+    const userTokenAccount = await anchor.utils.token.associatedAddress({
+      mint: tokenMint.publicKey,
+      owner: user.publicKey
+    });
+  
+    await program.methods
+      .issueNonFungibleReward()
+      .accounts({
+        reward: reward.publicKey,
+        rewardInstance: rewardInstance.publicKey,
+        user: user.publicKey,
+        userRewards: userRewards.publicKey,
+        authority: provider.wallet.publicKey,
+        tokenMint: tokenMint.publicKey,
+      })
+      .signers([rewardInstance, user])
+      .rpc();
+  
+    // Verify the reward issuance
+    const rewardInstanceAccount = await program.account.nonFungibleRewardInstance.fetch(rewardInstance.publicKey);
+    expect(rewardInstanceAccount.reward.toString()).to.equal(reward.publicKey.toString());
+    expect(rewardInstanceAccount.owner.toString()).to.equal(user.publicKey.toString());
+    expect(rewardInstanceAccount.tokenId.toNumber()).to.equal(1);
+  
+    const updatedRewardAccount = await program.account.reward.fetch(reward.publicKey) as RewardAccount;
+    expect(updatedRewardAccount.issuedCount.toNumber()).to.equal(1);
+  
+    const userTokenAccountInfo = await provider.connection.getTokenAccountBalance(userTokenAccount);
+    expect(userTokenAccountInfo.value.uiAmount).to.equal(1);
+  
     const updatedUserRewards = await program.account.userRewards.fetch(userRewards.publicKey);
     expect(updatedUserRewards.rewards).to.have.lengthOf(1);
     expect(updatedUserRewards.rewards[0].toString()).to.equal(reward.publicKey.toString());
