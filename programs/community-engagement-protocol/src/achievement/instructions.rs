@@ -103,37 +103,37 @@ pub fn create_non_fungible_achievement(
     metadata_uri: String,
 ) -> Result<()> {
     msg!("Starting create_non_fungible_achievement");
-    msg!("Name: {}", name);
-    msg!("Description: {}", description);
-    msg!("Criteria: {}", criteria);
-    msg!("Points: {}", points);
-    msg!("Metadata URI: {}", metadata_uri);
+    // msg!("Name: {}", name);
+    // msg!("Description: {}", description);
+    // msg!("Criteria: {}", criteria);
+    // msg!("Points: {}", points);
+    // msg!("Metadata URI: {}", metadata_uri);
 
-    // Log account pubkeys
-    msg!("Group Hub: {:?}", ctx.accounts.group_hub.key());
-    msg!("Achievement: {:?}", ctx.accounts.achievement.key());
-    msg!("Token Mint: {:?}", ctx.accounts.token_mint.key());
-    msg!("Token Account: {:?}", ctx.accounts.token_account.key());
-    msg!(
-        "Metadata Account: {:?}",
-        ctx.accounts.metadata_account.key()
-    );
-    msg!(
-        "Master Edition Account: {:?}",
-        ctx.accounts.master_edition_account.key()
-    );
-    msg!("Authority: {:?}", ctx.accounts.authority.key());
+    // // Log account pubkeys
+    // msg!("Group Hub: {:?}", ctx.accounts.group_hub.key());
+    // msg!("Achievement: {:?}", ctx.accounts.achievement.key());
+    // msg!("Token Mint: {:?}", ctx.accounts.token_mint.key());
+    // msg!("Token Account: {:?}", ctx.accounts.token_account.key());
+    // msg!(
+    //     "Metadata Account: {:?}",
+    //     ctx.accounts.metadata_account.key()
+    // );
+    // msg!(
+    //     "Master Edition Account: {:?}",
+    //     ctx.accounts.master_edition_account.key()
+    // );
+    // msg!("Authority: {:?}", ctx.accounts.authority.key());
 
-    msg!("Checking if authority is admin");
-    if !ctx
-        .accounts
-        .group_hub
-        .admins
-        .contains(&ctx.accounts.authority.key())
-    {
-        msg!("Error: Authority is not an admin of the group hub");
-        return Err(CepError::Unauthorized.into());
-    }
+    // msg!("Checking if authority is admin");
+    // if !ctx
+    //     .accounts
+    //     .group_hub
+    //     .admins
+    //     .contains(&ctx.accounts.authority.key())
+    // {
+    //     msg!("Error: Authority is not an admin of the group hub");
+    //     return Err(CepError::Unauthorized.into());
+    // }
 
     msg!("Validating input lengths");
     if name.chars().count() > 32 {

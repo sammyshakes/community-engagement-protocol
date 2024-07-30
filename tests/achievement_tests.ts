@@ -254,7 +254,7 @@ describe("Achievement Tests", () => {
     );
     log("Master edition account:", masterEditionAccount.toBase58());
   
-    const tokenAccount = await anchor.utils.token.associatedAddress({
+    const tokenAccount = anchor.utils.token.associatedAddress({
       mint: tokenMint.publicKey,
       owner: provider.wallet.publicKey,
     });
@@ -282,6 +282,7 @@ describe("Achievement Tests", () => {
           metadataAccount: metadataAccount,
           masterEditionAccount: masterEditionAccount,
           authority: provider.wallet.publicKey,
+          tokenAccount: tokenAccount,
         })
         .signers([achievement, tokenMint])
         .rpc();

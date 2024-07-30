@@ -3,11 +3,13 @@ use anchor_lang::prelude::*;
 pub mod achievement;
 pub mod errors;
 pub mod group_hub;
+pub mod membership;
 pub mod reward;
 
 use achievement::instructions::*;
 use group_hub::instructions::*;
 use group_hub::state::GroupHubInfo;
+use membership::instructions::*;
 use reward::instructions::*;
 
 declare_id!("7FQ74JMt2Eeca2RD2aLVBv4No8e9PUt8SHfGsUzKhqje");
@@ -63,6 +65,43 @@ pub mod community_engagement_protocol {
 
     pub fn remove_admin(ctx: Context<RemoveAdmin>, admin_to_remove: Pubkey) -> Result<()> {
         group_hub::instructions::remove_admin(ctx, admin_to_remove)
+    }
+
+    // Membership Instructions
+    pub fn initialize_membership(
+        ctx: Context<InitializeMembership>,
+        membership_id: u64,
+        name: String,
+        symbol: String,
+        base_uri: String,
+        max_supply: u64,
+        is_elastic: bool,
+        max_tiers: u8,
+    ) -> Result<()> {
+        membership::instructions::initialize_membership(
+            ctx,
+            membership_id,
+            name,
+            symbol,
+            base_uri,
+            max_supply,
+            is_elastic,
+            max_tiers,
+        )
+    }
+
+    pub fn mint_membership(ctx: Context<MintMembership>, tier_index: u8) -> Result<()> {
+        membership::instructions::mint_membership(ctx, tier_index)
+    }
+
+    pub fn create_membership_tier(
+        ctx: Context<CreateMembershipTier>,
+        tier_id: String,
+        duration: i64,
+        is_open: bool,
+        tier_uri: String,
+    ) -> Result<()> {
+        membership::instructions::create_membership_tier(ctx, tier_id, duration, is_open, tier_uri)
     }
 
     // Achievement Instructions
