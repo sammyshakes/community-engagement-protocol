@@ -88,7 +88,6 @@ pub struct MintMembership<'info> {
 
 pub fn mint_membership(ctx: Context<MintMembership>, tier_index: u8) -> Result<()> {
     let membership_data = &mut ctx.accounts.membership_data;
-    let clock = Clock::get()?;
 
     require!(
         membership_data.total_minted < membership_data.max_supply,

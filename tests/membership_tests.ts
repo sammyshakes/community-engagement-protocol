@@ -3,47 +3,16 @@ import { Program } from "@coral-xyz/anchor";
 import { CommunityEngagementProtocol } from "../target/types/community_engagement_protocol";
 import { expect } from "chai";
 import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
-  createAssociatedTokenAccountInstruction,
-  createInitializeMintInstruction,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
 } from "@solana/spl-token";
+import { program, provider, groupHubList, initializeGroupHubList, log, TOKEN_METADATA_PROGRAM_ID } from './common';
 
 describe("Membership Tests", () => {
-  const provider = anchor.AnchorProvider.env();
-  anchor.setProvider(provider);
+  before(initializeGroupHubList);
 
-  const program = anchor.workspace
-    .CommunityEngagementProtocol as Program<CommunityEngagementProtocol>;
-
-  const TOKEN_METADATA_PROGRAM_ID = new anchor.web3.PublicKey(
-    "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
-  );
-
-  let groupHubList: anchor.web3.Keypair;
   let membershipData: anchor.web3.Keypair;
-
-  const log = (...args) => {
-    if (true) {  // Set to false to disable logging
-      console.log(...args);
-    }
-  };
-
-  before(async () => {
-    groupHubList = anchor.web3.Keypair.generate();
-    
-    await program.methods
-      .initializeGroupHubList()
-      .accounts({
-        groupHubList: groupHubList.publicKey,
-        user: provider.wallet.publicKey,
-      })
-      .signers([groupHubList])
-      .rpc();
-
-    log("Initialized GroupHubList with publicKey:", groupHubList.publicKey.toBase58());
-  });
 
   it("Initializes membership", async () => {
     membershipData = anchor.web3.Keypair.generate();
@@ -65,7 +34,6 @@ describe("Membership Tests", () => {
             .accounts({
                 membershipData: membershipData.publicKey,
                 admin: admin.publicKey,
-                systemProgram: anchor.web3.SystemProgram.programId,
             })
             .signers([membershipData])
             .rpc();
@@ -86,7 +54,7 @@ describe("Membership Tests", () => {
 
         log("Membership initialization test passed");
     } catch (error) {
-        console.error("Error initializing membership:", error);
+        log("Error initializing membership:", error);
         throw error;
     }
   });
@@ -99,26 +67,31 @@ describe("Membership Tests", () => {
 
     log("Creating membership tier:", tierId);
 
-    await program.methods
-      .createMembershipTier(tierId, duration, isOpen, tierUri)
-      .accounts({
-        membershipData: membershipData.publicKey,
-        authority: provider.wallet.publicKey,
-      })
-      .rpc();
+    try {
+      await program.methods
+        .createMembershipTier(tierId, duration, isOpen, tierUri)
+        .accounts({
+          membershipData: membershipData.publicKey,
+          authority: provider.wallet.publicKey,
+        })
+        .rpc();
 
-    log("Membership tier created");
+      log("Membership tier created");
 
-    const account = await program.account.membershipData.fetch(membershipData.publicKey);
-    log("Fetched updated membership data:", account);
+      const account = await program.account.membershipData.fetch(membershipData.publicKey);
+      log("Fetched updated membership data:", account);
 
-    expect(account.tiers.length).to.equal(1);
-    expect(account.tiers[0].tierId).to.equal(tierId);
-    expect(account.tiers[0].duration.toNumber()).to.equal(duration.toNumber());
-    expect(account.tiers[0].isOpen).to.equal(isOpen);
-    expect(account.tiers[0].tierUri).to.equal(tierUri);
+      expect(account.tiers.length).to.equal(1);
+      expect(account.tiers[0].tierId).to.equal(tierId);
+      expect(account.tiers[0].duration.toNumber()).to.equal(duration.toNumber());
+      expect(account.tiers[0].isOpen).to.equal(isOpen);
+      expect(account.tiers[0].tierUri).to.equal(tierUri);
 
-    log("Membership tier creation test passed");
+      log("Membership tier creation test passed");
+    } catch (error) {
+      log("Error creating membership tier:", error);
+      throw error;
+    }
   });
 
   it("Mints a membership NFT", async () => {
@@ -198,7 +171,7 @@ describe("Membership Tests", () => {
 
       log("Membership NFT minting test passed");
     } catch (error) {
-      console.error("Error minting membership NFT:", error);
+      log("Error minting membership NFT:", error);
       throw error;
     }
   });
@@ -210,73 +183,77 @@ describe("Membership Tests", () => {
     const membershipData = anchor.web3.Keypair.generate();
     log("Creating membership data with publicKey:", membershipData.publicKey.toBase58());
   
-    await program.methods
-      .initializeMembership(
-        new anchor.BN(2), // Different membership_id
-        "Multi-Tier Membership",
-        "MTM",
-        "https://example.com/multi-tier/",
-        new anchor.BN(10000),
-        true,
-        5
-      )
-      .accounts({
-        membershipData: membershipData.publicKey,
-        admin: admin.publicKey,
-      })
-      .signers([membershipData])
-      .rpc();
+    try {
+      await program.methods
+        .initializeMembership(
+          new anchor.BN(2), // Different membership_id
+          "Multi-Tier Membership",
+          "MTM",
+          "https://example.com/multi-tier/",
+          new anchor.BN(10000),
+          true,
+          5
+        )
+        .accounts({
+          membershipData: membershipData.publicKey,
+          admin: admin.publicKey,
+        })
+        .signers([membershipData])
+        .rpc();
   
-    log("Multi-tier membership data initialized");
+      log("Multi-tier membership data initialized");
   
-    // Define tiers
-    const tiers = [
-      { id: "BRONZE", duration: 30 * 24 * 60 * 60, isOpen: true, uri: "bronze.json" },
-      { id: "SILVER", duration: 90 * 24 * 60 * 60, isOpen: true, uri: "silver.json" },
-      { id: "GOLD", duration: 365 * 24 * 60 * 60, isOpen: true, uri: "gold.json" },
-    ];
+      // Define tiers
+      const tiers = [
+        { id: "BRONZE", duration: 30 * 24 * 60 * 60, isOpen: true, uri: "bronze.json" },
+        { id: "SILVER", duration: 90 * 24 * 60 * 60, isOpen: true, uri: "silver.json" },
+        { id: "GOLD", duration: 365 * 24 * 60 * 60, isOpen: true, uri: "gold.json" },
+      ];
   
-    // Create each tier
-    for (const tier of tiers) {
-      log(`Creating ${tier.id} tier`);
-      try {
-        await program.methods
-          .createMembershipTier(
-            tier.id,
-            new anchor.BN(tier.duration),
-            tier.isOpen,
-            tier.uri
-          )
-          .accounts({
-            membershipData: membershipData.publicKey,
-            authority: admin.publicKey,
-          })
-          .rpc();
-        log(`${tier.id} tier created`);
-      } catch (error) {
-        log(`Error creating ${tier.id} tier:`, error);
-        throw error; // Re-throw error to fail the test
+      // Create each tier
+      for (const tier of tiers) {
+        log(`Creating ${tier.id} tier`);
+        try {
+          await program.methods
+            .createMembershipTier(
+              tier.id,
+              new anchor.BN(tier.duration),
+              tier.isOpen,
+              tier.uri
+            )
+            .accounts({
+              membershipData: membershipData.publicKey,
+              authority: admin.publicKey,
+            })
+            .rpc();
+          log(`${tier.id} tier created`);
+        } catch (error) {
+          log(`Error creating ${tier.id} tier:`, error);
+          throw error;
+        }
       }
+  
+      // Fetch and verify the membership data
+      const account = await program.account.membershipData.fetch(membershipData.publicKey);
+      log("Fetched updated membership data:", account);
+  
+      expect(account.tiers.length).to.equal(tiers.length);
+  
+      for (let i = 0; i < tiers.length; i++) {
+        log(`Verifying ${tiers[i].id} tier`);
+        expect(account.tiers[i].tierId).to.equal(tiers[i].id);
+        expect(account.tiers[i].duration.toNumber()).to.equal(tiers[i].duration);
+        expect(account.tiers[i].isOpen).to.equal(tiers[i].isOpen);
+        expect(account.tiers[i].tierUri).to.equal(tiers[i].uri);
+      }
+  
+      log("Multiple membership tiers creation test passed");
+    } catch (error) {
+      log("Error in multiple membership tiers test:", error);
+      throw error;
     }
-  
-    // Fetch and verify the membership data
-    const account = await program.account.membershipData.fetch(membershipData.publicKey);
-    log("Fetched updated membership data:", account);
-  
-    expect(account.tiers.length).to.equal(tiers.length);
-  
-    for (let i = 0; i < tiers.length; i++) {
-      log(`Verifying ${tiers[i].id} tier`);
-      expect(account.tiers[i].tierId).to.equal(tiers[i].id);
-      expect(account.tiers[i].duration.toNumber()).to.equal(tiers[i].duration);
-      expect(account.tiers[i].isOpen).to.equal(tiers[i].isOpen);
-      expect(account.tiers[i].tierUri).to.equal(tiers[i].uri);
-    }
-  
-    log("Multiple membership tiers creation test passed");
   });
   
-
   it("Mints NFTs for different membership tiers", async () => {
     const admin = provider.wallet;
 
@@ -360,7 +337,7 @@ describe("Membership Tests", () => {
             expect(tokenAccount.value.uiAmount).to.equal(1);
 
         } catch (error) {
-            console.error(`Error minting ${membershipDataAccount.tiers[i].tierId} membership NFT:`, error);
+            log(`Error minting ${membershipDataAccount.tiers[i].tierId} membership NFT:`, error);
             throw error;
         }
 
@@ -380,6 +357,4 @@ describe("Membership Tests", () => {
 
     log("Minting NFTs for different membership tiers test passed");
   });
-
-    
 });

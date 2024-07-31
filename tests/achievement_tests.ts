@@ -2,7 +2,6 @@
 import { expect } from 'chai';
 import * as anchor from "@coral-xyz/anchor";
 import { program, provider, groupHubList, initializeGroupHubList, log, TOKEN_METADATA_PROGRAM_ID, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from './common';
-import { getAssociatedTokenAddress } from '@solana/spl-token';
 
 describe("Achievement Tests", () => {
   before(initializeGroupHubList);
@@ -108,7 +107,6 @@ describe("Achievement Tests", () => {
     expect(achievementInfo.updatedAt.toNumber()).to.be.a('number');
   });
 
-  // In achievement_tests.ts
 
   it("Creates a non-fungible achievement", async () => {
     const groupHub = anchor.web3.Keypair.generate();
@@ -126,6 +124,10 @@ describe("Achievement Tests", () => {
   
     const achievement = anchor.web3.Keypair.generate();
     const mint = anchor.web3.Keypair.generate();
+
+    log("Creating non-fungible achievement");
+    log("Achievement public key:", achievement.publicKey.toBase58());
+    log("Mint public key:", mint.publicKey.toBase58());
   
     try {
       await program.methods
@@ -162,6 +164,11 @@ describe("Achievement Tests", () => {
       expect(achievementAccount.tokenSupply.toString()).to.equal("0");
       expect(achievementAccount.metadataUri).to.equal("https://example.com/metadata.json");
   
+      // Verify the mint account
+      const mintAccount = await provider.connection.getAccountInfo(mint.publicKey);
+      log("Mint account exists:", mintAccount !== null);
+      expect(mintAccount).to.not.be.null;
+      
       log("Non-fungible achievement test passed");
     } catch (error) {
       console.error("Error creating non-fungible achievement:", error);
