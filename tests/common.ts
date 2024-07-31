@@ -3,7 +3,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { CommunityEngagementProtocol } from "../target/types/community_engagement_protocol";
 
-export const DEBUG = true;
+export const DEBUG = false;
 
 export function log(...args: any[]) {
   if (DEBUG) {

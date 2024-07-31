@@ -42,23 +42,23 @@ pub struct MintMembership<'info> {
     pub membership_data: Account<'info, MembershipData>,
     #[account(
         init,
-        payer = payer,
+        payer = admin,
         mint::decimals = 0,
-        mint::authority = membership_data.key(),
-        mint::freeze_authority = membership_data.key(),
+        mint::authority = admin.key(),
+        mint::freeze_authority = admin.key(),
     )]
     pub mint: Account<'info, Mint>,
     #[account(
         init_if_needed,
-        payer = payer,
+        payer = admin,
         associated_token::mint = mint,
         associated_token::authority = recipient,
     )]
     pub token_account: Account<'info, TokenAccount>,
     /// CHECK: This is the account that will receive the minted token
     pub recipient: UncheckedAccount<'info>,
-    #[account(mut)]
-    pub payer: Signer<'info>,
+    #[account(mut, constraint = admin.key() == membership_data.admin @ MembershipError::Unauthorized)]
+    pub admin: Signer<'info>,
     /// CHECK: This is the metadata account that will be created
     #[account(mut)]
     pub metadata: UncheckedAccount<'info>,
@@ -88,7 +88,7 @@ pub fn mint_membership(ctx: Context<MintMembership>, tier_index: u8) -> Result<(
             anchor_spl::token::MintTo {
                 mint: ctx.accounts.mint.to_account_info(),
                 to: ctx.accounts.token_account.to_account_info(),
-                authority: membership_data.to_account_info(),
+                authority: ctx.accounts.admin.to_account_info(),
             },
         ),
         1,
@@ -99,9 +99,9 @@ pub fn mint_membership(ctx: Context<MintMembership>, tier_index: u8) -> Result<(
     let metadata_accounts = CreateMetadataAccountsV3 {
         metadata: ctx.accounts.metadata.to_account_info(),
         mint: ctx.accounts.mint.to_account_info(),
-        mint_authority: membership_data.to_account_info(),
-        payer: ctx.accounts.payer.to_account_info(),
-        update_authority: membership_data.to_account_info(),
+        mint_authority: ctx.accounts.admin.to_account_info(),
+        payer: ctx.accounts.admin.to_account_info(),
+        update_authority: ctx.accounts.admin.to_account_info(),
         system_program: ctx.accounts.system_program.to_account_info(),
         rent: ctx.accounts.rent.to_account_info(),
     };
@@ -131,9 +131,9 @@ pub fn mint_membership(ctx: Context<MintMembership>, tier_index: u8) -> Result<(
     let master_edition_accounts = CreateMasterEditionV3 {
         edition: ctx.accounts.master_edition.to_account_info(),
         mint: ctx.accounts.mint.to_account_info(),
-        update_authority: membership_data.to_account_info(),
-        mint_authority: membership_data.to_account_info(),
-        payer: ctx.accounts.payer.to_account_info(),
+        update_authority: ctx.accounts.admin.to_account_info(),
+        mint_authority: ctx.accounts.admin.to_account_info(),
+        payer: ctx.accounts.admin.to_account_info(),
         metadata: ctx.accounts.metadata.to_account_info(),
         token_program: ctx.accounts.token_program.to_account_info(),
         system_program: ctx.accounts.system_program.to_account_info(),

@@ -6,8 +6,10 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
+  createInitializeMintInstruction,
   getAssociatedTokenAddress,
 } from "@solana/spl-token";
+import { Signer } from "@solana/web3.js";
 
 describe("Membership Tests", () => {
   const provider = anchor.AnchorProvider.env();
@@ -91,21 +93,57 @@ describe("Membership Tests", () => {
     expect(account.tiers[0].isOpen).to.equal(isOpen);
     expect(account.tiers[0].tierUri).to.equal(tierUri);
   });
-
   it("Mints a membership NFT", async () => {
     const mint = anchor.web3.Keypair.generate();
     const recipient = anchor.web3.Keypair.generate();
-
-    const [membershipDataPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("membership")],
-      program.programId
+    const admin = provider.wallet; // The admin is the one who initializes and mints
+  
+    // Airdrop some SOL to the recipient
+    const airdropSignature = await provider.connection.requestAirdrop(
+      recipient.publicKey,
+      2 * anchor.web3.LAMPORTS_PER_SOL
     );
-
+    await provider.connection.confirmTransaction(airdropSignature);
+  
+    // Initialize membership data
+    const membershipData = anchor.web3.Keypair.generate();
+    await program.methods
+      .initializeMembership(
+        new anchor.BN(1),
+        "Test Membership",
+        "TEST",
+        "https://example.com/",
+        new anchor.BN(1000),
+        true,
+        5
+      )
+      .accounts({
+        membershipData: membershipData.publicKey,
+        admin: admin.publicKey,
+        // systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([membershipData])
+      .rpc();
+  
+    // Create a membership tier
+    await program.methods
+      .createMembershipTier(
+        "BASIC",
+        new anchor.BN(30 * 24 * 60 * 60),
+        true,
+        "basic.json"
+      )
+      .accounts({
+        membershipData: membershipData.publicKey,
+        authority: admin.publicKey,
+      })
+      .rpc();
+  
     const tokenAccountAddress = await getAssociatedTokenAddress(
       mint.publicKey,
       recipient.publicKey
     );
-
+  
     const metadataAddress = anchor.web3.PublicKey.findProgramAddressSync(
       [
         Buffer.from("metadata"),
@@ -114,7 +152,7 @@ describe("Membership Tests", () => {
       ],
       TOKEN_METADATA_PROGRAM_ID
     )[0];
-
+  
     const masterEditionAddress = anchor.web3.PublicKey.findProgramAddressSync(
       [
         Buffer.from("metadata"),
@@ -124,40 +162,37 @@ describe("Membership Tests", () => {
       ],
       TOKEN_METADATA_PROGRAM_ID
     )[0];
-
-    await program.methods
-      .mintMembership(0) // Assuming tier index 0
-      .accounts({
-        membershipData: membershipDataPda,
-        mint: mint.publicKey,
-        tokenAccount: tokenAccountAddress,
-        recipient: recipient.publicKey,
-        payer: provider.wallet.publicKey,
-        metadata: metadataAddress,
-        masterEdition: masterEditionAddress,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
-        systemProgram: anchor.web3.SystemProgram.programId,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
-      .preInstructions([
-        await createAssociatedTokenAccountInstruction(
-          provider.wallet.publicKey,
-          tokenAccountAddress,
-          recipient.publicKey,
-          mint.publicKey
-        ),
-      ])
-      .signers([mint])
-      .rpc();
-
-    const tokenAccount = await program.provider.connection.getTokenAccountBalance(
-      tokenAccountAddress
-    );
-    expect(tokenAccount.value.uiAmount).to.equal(1);
-
-    const membershipDataAccount = await program.account.membershipData.fetch(membershipDataPda);
-    expect(membershipDataAccount.totalMinted.toNumber()).to.equal(1);
+  
+    try {
+      await program.methods
+        .mintMembership(0)
+        .accounts({
+          membershipData: membershipData.publicKey,
+          mint: mint.publicKey,
+          tokenAccount: tokenAccountAddress,
+          recipient: recipient.publicKey,
+          admin: admin.publicKey,
+          metadata: metadataAddress,
+          masterEdition: masterEditionAddress,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        })
+        .signers([mint])
+        .rpc();
+  
+      const tokenAccount = await provider.connection.getTokenAccountBalance(
+        tokenAccountAddress
+      );
+      expect(tokenAccount.value.uiAmount).to.equal(1);
+  
+      const membershipDataAccount = await program.account.membershipData.fetch(membershipData.publicKey);
+      expect(membershipDataAccount.totalMinted.toNumber()).to.equal(1);
+    } catch (error) {
+      console.error("Error details:", error);
+      throw error;
+    }
   });
 });
