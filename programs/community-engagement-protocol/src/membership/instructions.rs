@@ -4,12 +4,26 @@ use mpl_token_metadata::types::DataV2;
 
 #[derive(Accounts)]
 pub struct InitializeMembership<'info> {
-    #[account(init, payer = admin, space = 8 + 32 + 200)]
+    #[account(init, payer = admin, space = 
+        8 +  // discriminator
+        8 +  // membership_id
+        4 + 100 +  // name (4 bytes for length prefix + max 100 bytes for string)
+        4 + 10 +  // symbol (4 bytes for length prefix + max 10 bytes for string)
+        4 + 200 +  // base_uri (4 bytes for length prefix + max 200 bytes for string)
+        8 +  // max_supply
+        1 +  // is_elastic
+        1 +  // max_tiers
+        8 +  // total_minted
+        8 +  // total_burned
+        32 +  // admin (Pubkey)
+        (4 + 10 + 8 + 1 + 4 + 200) * 10  // tiers (4 bytes for length prefix + max 10 bytes for tier_id + 8 bytes for duration + 1 byte for is_open + 4 bytes for length prefix + max 200 bytes for tier_uri) * max 10 tiers
+    )]
     pub membership_data: Account<'info, MembershipData>,
     #[account(mut)]
     pub admin: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
+
 
 pub fn initialize_membership(
     ctx: Context<InitializeMembership>,
