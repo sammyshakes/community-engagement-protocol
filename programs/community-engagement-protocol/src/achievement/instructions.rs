@@ -94,6 +94,35 @@ pub fn create_fungible_achievement(
     Ok(())
 }
 
+#[derive(Accounts)]
+pub struct CreateNonFungibleAchievement<'info> {
+    #[account(mut)]
+    pub group_hub: Account<'info, GroupHub>,
+
+    #[account(
+        init,
+        payer = admin,
+        space = 8 + 32 + 100 + 200 + 200 + 4 + 8 + 8 + 1 + 32 + 8 + 200
+    )]
+    pub achievement: Account<'info, Achievement>,
+
+    #[account(
+        init,
+        payer = admin,
+        mint::decimals = 0,
+        mint::authority = admin.key(),
+        mint::freeze_authority = admin.key(),
+    )]
+    pub mint: Account<'info, Mint>,
+
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
 pub fn create_non_fungible_achievement(
     ctx: Context<CreateNonFungibleAchievement>,
     name: String,
@@ -102,180 +131,31 @@ pub fn create_non_fungible_achievement(
     points: u32,
     metadata_uri: String,
 ) -> Result<()> {
-    msg!("Starting create_non_fungible_achievement");
-    // msg!("Name: {}", name);
-    // msg!("Description: {}", description);
-    // msg!("Criteria: {}", criteria);
-    // msg!("Points: {}", points);
-    // msg!("Metadata URI: {}", metadata_uri);
+    msg!("Creating non-fungible achievement: {}", name);
 
-    // // Log account pubkeys
-    // msg!("Group Hub: {:?}", ctx.accounts.group_hub.key());
-    // msg!("Achievement: {:?}", ctx.accounts.achievement.key());
-    // msg!("Token Mint: {:?}", ctx.accounts.token_mint.key());
-    // msg!("Token Account: {:?}", ctx.accounts.token_account.key());
-    // msg!(
-    //     "Metadata Account: {:?}",
-    //     ctx.accounts.metadata_account.key()
-    // );
-    // msg!(
-    //     "Master Edition Account: {:?}",
-    //     ctx.accounts.master_edition_account.key()
-    // );
-    // msg!("Authority: {:?}", ctx.accounts.authority.key());
+    // Validate inputs
+    require!(name.len() <= 100, CepError::NameTooLong);
+    require!(description.len() <= 200, CepError::DescriptionTooLong);
+    require!(metadata_uri.len() <= 200, CepError::UriTooLong);
 
-    // msg!("Checking if authority is admin");
-    // if !ctx
-    //     .accounts
-    //     .group_hub
-    //     .admins
-    //     .contains(&ctx.accounts.authority.key())
-    // {
-    //     msg!("Error: Authority is not an admin of the group hub");
-    //     return Err(CepError::Unauthorized.into());
-    // }
+    // Set achievement data
+    let achievement = &mut ctx.accounts.achievement;
+    achievement.group_hub = ctx.accounts.group_hub.key();
+    achievement.name = name.clone();
+    achievement.description = description;
+    achievement.criteria = criteria;
+    achievement.points = points;
+    achievement.created_at = Clock::get()?.unix_timestamp;
+    achievement.updated_at = achievement.created_at;
+    achievement.achievement_type = AchievementType::NonFungible;
+    achievement.token_mint = Some(ctx.accounts.mint.key());
+    achievement.token_supply = Some(0);
+    achievement.metadata_uri = Some(metadata_uri.clone());
 
-    msg!("Validating input lengths");
-    if name.chars().count() > 32 {
-        msg!("Error: Name too long");
-        return Err(CepError::NameTooLong.into());
-    }
-    if description.chars().count() > 200 {
-        msg!("Error: Description too long");
-        return Err(CepError::DescriptionTooLong.into());
-    }
-    if metadata_uri.chars().count() > 200 {
-        msg!("Error: URI too long");
-        return Err(CepError::UriTooLong.into());
-    }
+    // Add achievement to group hub
+    ctx.accounts.group_hub.achievements.push(achievement.key());
 
-    msg!("Setting achievement fields");
-    let clock = Clock::get()?;
-
-    msg!("Setting group_hub");
-    ctx.accounts.achievement.group_hub = ctx.accounts.group_hub.key();
-    msg!("Setting name");
-    ctx.accounts.achievement.name = name.clone();
-    msg!("Setting description");
-    ctx.accounts.achievement.description = description.clone();
-    msg!("Setting criteria");
-    ctx.accounts.achievement.criteria = criteria;
-    msg!("Setting points");
-    ctx.accounts.achievement.points = points;
-    msg!("Setting created_at");
-    ctx.accounts.achievement.created_at = clock.unix_timestamp;
-    msg!("Setting updated_at");
-    ctx.accounts.achievement.updated_at = clock.unix_timestamp;
-    msg!("Setting achievement_type");
-    ctx.accounts.achievement.achievement_type = AchievementType::NonFungible;
-    msg!("Setting token_mint");
-    ctx.accounts.achievement.token_mint = Some(ctx.accounts.token_mint.key());
-    msg!("Setting token_supply");
-    ctx.accounts.achievement.token_supply = Some(0);
-    msg!("Setting metadata_uri");
-    ctx.accounts.achievement.metadata_uri = Some(metadata_uri.clone());
-
-    msg!("Adding achievement to group hub");
-    ctx.accounts
-        .group_hub
-        .achievements
-        .push(ctx.accounts.achievement.key());
-
-    msg!("Achievement fields set successfully");
-
-    msg!("Initializing mint");
-    token::initialize_mint(
-        CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
-            token::InitializeMint {
-                mint: ctx.accounts.token_mint.to_account_info(),
-                rent: ctx.accounts.rent.to_account_info(),
-            },
-        ),
-        0, // 0 decimals for NFT
-        ctx.accounts.authority.key,
-        Some(ctx.accounts.authority.key),
-    )?;
-
-    msg!("Minting one token");
-    token::mint_to(
-        CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
-            token::MintTo {
-                mint: ctx.accounts.token_mint.to_account_info(),
-                to: ctx.accounts.token_account.to_account_info(),
-                authority: ctx.accounts.authority.to_account_info(),
-            },
-        ),
-        1,
-    )?;
-
-    msg!("Creating metadata account");
-    // Create metadata account
-    let create_metadata_accounts_v3_accounts = CreateMetadataAccountsV3 {
-        metadata: ctx.accounts.metadata_account.to_account_info(),
-        mint: ctx.accounts.token_mint.to_account_info(),
-        mint_authority: ctx.accounts.authority.to_account_info(),
-        payer: ctx.accounts.authority.to_account_info(),
-        update_authority: ctx.accounts.authority.to_account_info(),
-        system_program: ctx.accounts.system_program.to_account_info(),
-        rent: ctx.accounts.rent.to_account_info(),
-    };
-
-    let create_metadata_ctx = CpiContext::new(
-        ctx.accounts.token_metadata_program.to_account_info(),
-        create_metadata_accounts_v3_accounts,
-    );
-
-    let data = DataV2 {
-        name: name.clone(),
-        symbol: "ACH".to_string(),
-        uri: metadata_uri.clone(),
-        seller_fee_basis_points: 0,
-        creators: None,
-        collection: None,
-        uses: None,
-    };
-
-    create_metadata_accounts_v3(
-        create_metadata_ctx,
-        data,
-        true, // is_mutable
-        true, // update_authority_is_signer
-        None, // collection_details
-    )?;
-
-    // Create master edition account
-    let create_master_edition_v3_accounts = CreateMasterEditionV3 {
-        edition: ctx.accounts.master_edition_account.to_account_info(),
-        mint: ctx.accounts.token_mint.to_account_info(),
-        update_authority: ctx.accounts.authority.to_account_info(),
-        mint_authority: ctx.accounts.authority.to_account_info(),
-        payer: ctx.accounts.authority.to_account_info(),
-        metadata: ctx.accounts.metadata_account.to_account_info(),
-        token_program: ctx.accounts.token_program.to_account_info(),
-        system_program: ctx.accounts.system_program.to_account_info(),
-        rent: ctx.accounts.rent.to_account_info(),
-    };
-
-    let create_master_edition_ctx = CpiContext::new(
-        ctx.accounts.token_metadata_program.to_account_info(),
-        create_master_edition_v3_accounts,
-    );
-
-    create_master_edition_v3(
-        create_master_edition_ctx,
-        Some(0), // Max supply of 0 means unlimited editions can be minted
-    )?;
-
-    // Update the achievement's token supply
-    ctx.accounts.achievement.token_supply = Some(1);
-
-    msg!(
-        "Non-Fungible Achievement '{}' created for Group Hub '{}'",
-        ctx.accounts.achievement.name,
-        ctx.accounts.group_hub.name
-    );
+    msg!("Non-fungible achievement created successfully");
     Ok(())
 }
 
@@ -453,57 +333,6 @@ pub struct CreateFungibleAchievement<'info> {
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
-    pub rent: Sysvar<'info, Rent>,
-}
-
-#[derive(Accounts)]
-pub struct CreateNonFungibleAchievement<'info> {
-    #[account(
-        mut,
-        // constraint = group_hub.admins.contains(&authority.key()) @ CepError::Unauthorized
-    )]
-    pub group_hub: Account<'info, GroupHub>,
-
-    #[account(
-        init,
-        payer = authority,
-        space = 8 + 32 + 32 + 200 + 200 + 4 + 8 + 8 + 1 + 32 + 8 + 200
-    )]
-    pub achievement: Account<'info, Achievement>,
-
-    #[account(
-        init,
-        payer = authority,
-        mint::decimals = 0,
-        mint::authority = authority.key(),
-        mint::freeze_authority = authority.key(),
-    )]
-    pub token_mint: Account<'info, Mint>,
-
-    #[account(
-        init_if_needed,
-        payer = authority,
-        associated_token::mint = token_mint,
-        associated_token::authority = authority,
-    )]
-    pub token_account: Account<'info, TokenAccount>,
-
-    pub associated_token_program: Program<'info, AssociatedToken>,
-
-    /// CHECK: This account is created in the instruction
-    #[account(mut)]
-    pub metadata_account: UncheckedAccount<'info>,
-
-    /// CHECK: This account is created in the instruction
-    #[account(mut)]
-    pub master_edition_account: UncheckedAccount<'info>,
-
-    #[account(mut)]
-    pub authority: Signer<'info>,
-
-    pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
-    pub token_metadata_program: Program<'info, Metadata>,
     pub rent: Sysvar<'info, Rent>,
 }
 

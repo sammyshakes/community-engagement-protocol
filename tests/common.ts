@@ -2,6 +2,11 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { CommunityEngagementProtocol } from "../target/types/community_engagement_protocol";
+import {
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress,
+} from "@solana/spl-token";
 
 export const DEBUG = false;
 
@@ -34,3 +39,6 @@ export async function initializeGroupHubList() {
 
   log("Initialized GroupHubList with publicKey:", groupHubList.publicKey.toBase58());
 }
+
+// Export the token-related constants and functions
+export { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress };
