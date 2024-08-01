@@ -8,7 +8,7 @@ import {
   getAssociatedTokenAddress,
 } from "@solana/spl-token";
 
-export const DEBUG = true;
+export const DEBUG = false;
 
 export function log(...args: any[]) {
   if (DEBUG) {

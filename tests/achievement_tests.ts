@@ -107,6 +107,101 @@ describe("Achievement Tests", () => {
     expect(achievementInfo.updatedAt.toNumber()).to.be.a('number');
   });
 
+  it("Creates and awards a fungible achievement", async () => {
+    log("Starting fungible achievement test");
+    const groupHub = anchor.web3.Keypair.generate();
+    const achievement = anchor.web3.Keypair.generate();
+    const tokenMint = anchor.web3.Keypair.generate();
+    const user = anchor.web3.Keypair.generate();
+    const userAchievements = anchor.web3.Keypair.generate();
+    const userAchievement = anchor.web3.Keypair.generate();
+  
+    log("Creating group hub");
+    await program.methods
+      .createGroupHub(
+        "Test Group Hub",
+        "A test group hub for fungible achievements",
+        null,
+        null,
+        null,
+        []
+      )
+      .accounts({
+        groupHub: groupHub.publicKey,
+        groupHubList: groupHubList.publicKey,
+        user: provider.wallet.publicKey,
+      })
+      .signers([groupHub])
+      .rpc();
+    log("Group hub created with publicKey:", groupHub.publicKey.toBase58());
+  
+    log("Creating fungible achievement");
+    await program.methods
+      .createFungibleAchievement(
+        "Test Fungible Achievement",
+        "A test fungible achievement",
+        "Complete the test",
+        100,
+        new anchor.BN(1000000)
+      )
+      .accounts({
+        groupHub: groupHub.publicKey,
+        achievement: achievement.publicKey,
+        tokenMint: tokenMint.publicKey,
+        authority: provider.wallet.publicKey,
+      })
+      .signers([achievement, tokenMint])
+      .rpc();
+    log("Fungible achievement created with publicKey:", achievement.publicKey.toBase58());
+  
+    log("Initializing user achievements");
+    await program.methods
+      .initializeUserAchievements()
+      .accounts({
+        userAchievements: userAchievements.publicKey,
+        user: user.publicKey,
+        authority: provider.wallet.publicKey,
+      })
+      .signers([userAchievements, user])
+      .rpc();
+    log("User achievements initialized with publicKey:", userAchievements.publicKey.toBase58());
+  
+    const userTokenAccount = await anchor.utils.token.associatedAddress({
+      mint: tokenMint.publicKey,
+      owner: user.publicKey
+    });
+    log("User token account:", userTokenAccount.toBase58());
+  
+    log("Awarding fungible achievement");
+    await program.methods
+      .awardFungibleAchievement()
+      .accounts({
+        groupHub: groupHub.publicKey,
+        userAchievement: userAchievement.publicKey,
+        achievement: achievement.publicKey,
+        user: user.publicKey,
+        userAchievements: userAchievements.publicKey,
+        authority: provider.wallet.publicKey,
+        tokenMint: tokenMint.publicKey,
+        userTokenAccount: userTokenAccount,
+      })
+      .signers([userAchievement])
+      .rpc();
+    log("Fungible achievement awarded");
+  
+    log("Verifying award");
+    const userTokenAccountInfo = await provider.connection.getTokenAccountBalance(userTokenAccount);
+    log("User token account balance:", userTokenAccountInfo.value.uiAmount);
+    expect(userTokenAccountInfo.value.uiAmount).to.equal(1);
+  
+    const updatedUserAchievements = await program.account.userAchievements.fetch(userAchievements.publicKey);
+    log("Updated user achievements:", updatedUserAchievements);
+    expect(updatedUserAchievements.achievements).to.have.lengthOf(1);
+    expect(updatedUserAchievements.achievements[0].toString()).to.equal(achievement.publicKey.toString());
+    
+    log("Fungible achievement test completed successfully");
+  });
+
 
   it("Creates a non-fungible achievement", async () => {
     const groupHub = anchor.web3.Keypair.generate();
