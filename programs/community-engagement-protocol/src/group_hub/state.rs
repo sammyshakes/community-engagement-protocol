@@ -6,6 +6,7 @@ pub struct GroupHub {
     pub description: String,
     pub admins: Vec<Pubkey>,
     pub achievements: Vec<Pubkey>,
+    pub memberships: Vec<Pubkey>,
     pub creation_date: i64,
     pub last_updated: i64,
     pub metadata: GroupHubMetadata,

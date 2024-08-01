@@ -37,6 +37,7 @@ pub fn create_group_hub(
     group_hub.description = description;
     group_hub.admins = vec![user.key()];
     group_hub.achievements = Vec::new();
+    group_hub.memberships = Vec::new();
     group_hub.creation_date = clock.unix_timestamp;
     group_hub.last_updated = clock.unix_timestamp;
     group_hub.metadata = GroupHubMetadata {

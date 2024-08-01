@@ -1,11 +1,16 @@
+use crate::group_hub::GroupHub;
+
 use super::*;
 // use anchor_lang::solana_program::sysvar;
 use mpl_token_metadata::types::DataV2;
 
 #[derive(Accounts)]
 pub struct InitializeMembership<'info> {
+    #[account(mut)]
+    pub group_hub: Account<'info, GroupHub>,
     #[account(init, payer = admin, space = 
         8 +  // discriminator
+        32 +  // group_hub (Pubkey)
         8 +  // membership_id
         4 + 100 +  // name (4 bytes for length prefix + max 100 bytes for string)
         4 + 10 +  // symbol (4 bytes for length prefix + max 10 bytes for string)
@@ -36,6 +41,9 @@ pub fn initialize_membership(
     max_tiers: u8,
 ) -> Result<()> {
     let membership_data = &mut ctx.accounts.membership_data;
+    let group_hub = &mut ctx.accounts.group_hub;
+    
+    membership_data.group_hub = group_hub.key();
     membership_data.membership_id = membership_id;
     membership_data.name = name;
     membership_data.symbol = symbol;
@@ -47,6 +55,10 @@ pub fn initialize_membership(
     membership_data.total_minted = 0;
     membership_data.total_burned = 0;
     membership_data.tiers = Vec::new();
+
+    // Add the membership to the group hub
+    group_hub.memberships.push(membership_data.key());
+
     Ok(())
 }
 
@@ -170,8 +182,11 @@ pub fn mint_membership(ctx: Context<MintMembership>, tier_index: u8) -> Result<(
 #[derive(Accounts)]
 pub struct CreateMembershipTier<'info> {
     #[account(mut)]
+    pub group_hub: Account<'info, GroupHub>,
+    #[account(mut, has_one = group_hub)]
     pub membership_data: Account<'info, MembershipData>,
     pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 pub fn create_membership_tier(
@@ -182,6 +197,13 @@ pub fn create_membership_tier(
     tier_uri: String,
 ) -> Result<()> {
     let membership_data = &mut ctx.accounts.membership_data;
+    let group_hub = &ctx.accounts.group_hub;
+
+    // Ensure the membership belongs to this group hub
+    require!(
+        membership_data.group_hub == group_hub.key(),
+        MembershipError::InvalidGroupHub
+    );
 
     require!(
         membership_data.admin == ctx.accounts.authority.key(),

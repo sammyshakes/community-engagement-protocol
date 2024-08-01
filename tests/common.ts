@@ -40,5 +40,28 @@ export async function initializeGroupHubList() {
   log("Initialized GroupHubList with publicKey:", groupHubList.publicKey.toBase58());
 }
 
+export async function createUniqueGroupHub() {
+  const groupHub = anchor.web3.Keypair.generate();
+  await program.methods
+    .createGroupHub(
+      `Test Group Hub ${Date.now()}`,
+      "A test group hub for memberships",
+      null,
+      null,
+      null,
+      []
+    )
+    .accounts({
+      groupHub: groupHub.publicKey,
+      groupHubList: groupHubList.publicKey,
+      user: provider.wallet.publicKey,
+    })
+    .signers([groupHub])
+    .rpc();
+  
+  log("Created unique GroupHub with publicKey:", groupHub.publicKey.toBase58());
+  return groupHub;
+}
+
 // Export the token-related constants and functions
 export { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress };

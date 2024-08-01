@@ -7,16 +7,36 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
 } from "@solana/spl-token";
-import { program, provider, groupHubList, initializeGroupHubList, log, TOKEN_METADATA_PROGRAM_ID } from './common';
+import { program, provider, groupHubList, initializeGroupHubList, createUniqueGroupHub, log, TOKEN_METADATA_PROGRAM_ID } from './common';
 
 describe("Membership Tests", () => {
   before(initializeGroupHubList);
 
   let membershipData: anchor.web3.Keypair;
+  let groupHub: anchor.web3.Keypair;
 
   it("Initializes membership", async () => {
     membershipData = anchor.web3.Keypair.generate();
+    groupHub = anchor.web3.Keypair.generate();
     const admin = provider.wallet;
+
+    // First, create a group hub
+    await program.methods
+      .createGroupHub(
+        "Test Group Hub",
+        "A test group hub for memberships",
+        null,
+        null,
+        null,
+        []
+      )
+      .accounts({
+        groupHub: groupHub.publicKey,
+        groupHubList: groupHubList.publicKey,
+        user: admin.publicKey,
+      })
+      .signers([groupHub])
+      .rpc();
 
     log("Creating membership data with publicKey:", membershipData.publicKey.toBase58());
 
@@ -32,6 +52,7 @@ describe("Membership Tests", () => {
                 5
             )
             .accounts({
+                groupHub: groupHub.publicKey,
                 membershipData: membershipData.publicKey,
                 admin: admin.publicKey,
             })
@@ -43,6 +64,7 @@ describe("Membership Tests", () => {
         const account = await program.account.membershipData.fetch(membershipData.publicKey);
         log("Fetched membership data:", account);
 
+        expect(account.groupHub.toString()).to.equal(groupHub.publicKey.toString());
         expect(account.membershipId.toNumber()).to.equal(1);
         expect(account.name).to.equal("Test Membership");
         expect(account.symbol).to.equal("TEST");
@@ -52,12 +74,19 @@ describe("Membership Tests", () => {
         expect(account.maxTiers).to.equal(5);
         expect(account.admin.toString()).to.equal(admin.publicKey.toString());
 
+        // Check if the membership was added to the group hub
+        const groupHubAccount = await program.account.groupHub.fetch(groupHub.publicKey);
+        log("Updated GroupHub:", groupHubAccount);
+
+        expect(groupHubAccount.memberships.map(pk => pk.toString()))
+            .to.include(membershipData.publicKey.toString());
+
         log("Membership initialization test passed");
     } catch (error) {
         log("Error initializing membership:", error);
         throw error;
     }
-  });
+});
 
   it("Creates a membership tier", async () => {
     const tierId = "BASIC";
@@ -178,6 +207,25 @@ describe("Membership Tests", () => {
 
   it("Creates multiple membership tiers", async () => {
     const admin = provider.wallet;
+
+    // Create a new group hub
+    const groupHub = anchor.web3.Keypair.generate();
+    await program.methods
+      .createGroupHub(
+        "Multi-Tier Group Hub",
+        "A group hub for testing multiple membership tiers",
+        null,
+        null,
+        null,
+        []
+      )
+      .accounts({
+        groupHub: groupHub.publicKey,
+        groupHubList: groupHubList.publicKey,
+        user: admin.publicKey,
+      })
+      .signers([groupHub])
+      .rpc();
   
     // Create a new membership data account
     const membershipData = anchor.web3.Keypair.generate();
@@ -195,6 +243,7 @@ describe("Membership Tests", () => {
           5
         )
         .accounts({
+          groupHub: groupHub.publicKey,
           membershipData: membershipData.publicKey,
           admin: admin.publicKey,
         })
@@ -356,5 +405,114 @@ describe("Membership Tests", () => {
     expect(updatedMembershipData.totalMinted.toNumber()).to.equal(expectedTotalMinted);
 
     log("Minting NFTs for different membership tiers test passed");
+  });
+
+  it("Adds membership to group hub", async () => {
+    const groupHub = await createUniqueGroupHub();
+    const membershipData = anchor.web3.Keypair.generate();
+    const admin = provider.wallet;
+
+    await program.methods
+      .initializeMembership(
+        new anchor.BN(Date.now()), // Use current timestamp as a unique membership_id
+        `Test Membership ${Date.now()}`,
+        "TEST",
+        "https://example.com/",
+        new anchor.BN(1000),
+        true,
+        5
+      )
+      .accounts({
+        groupHub: groupHub.publicKey,
+        membershipData: membershipData.publicKey,
+        admin: admin.publicKey,
+      })
+      .signers([membershipData])
+      .rpc();
+
+    const groupHubAccount = await program.account.groupHub.fetch(groupHub.publicKey);
+    log("Group Hub memberships:", groupHubAccount.memberships.map(m => m.toString()));
+    log("Membership Data publicKey:", membershipData.publicKey.toString());
+    expect(groupHubAccount.memberships.map(m => m.toString())).to.include(membershipData.publicKey.toString());
+  });
+  
+  it("Prevents initializing membership with wrong group hub", async () => {
+    const wrongGroupHub = anchor.web3.Keypair.generate();
+    const newMembershipData = anchor.web3.Keypair.generate();
+    const admin = provider.wallet;
+  
+    try {
+      await program.methods
+        .initializeMembership(
+          new anchor.BN(2),
+          "Wrong Group Hub Membership",
+          "WGH",
+          "https://example.com/",
+          new anchor.BN(1000),
+          true,
+          5
+        )
+        .accounts({
+          groupHub: wrongGroupHub.publicKey,
+          membershipData: newMembershipData.publicKey,
+          admin: admin.publicKey,
+        })
+        .signers([newMembershipData])
+        .rpc();
+  
+      // If we reach here, the test should fail
+      expect.fail("Should not be able to initialize membership with wrong group hub");
+    } catch (error) {
+      expect(error).to.be.an('error');
+      // You might want to check for a specific error message here
+    }
+  });
+  
+  it("Creates membership tier within group hub context", async () => {
+    const groupHub = await createUniqueGroupHub();
+    const membershipData = anchor.web3.Keypair.generate();
+    const admin = provider.wallet;
+
+    // Initialize membership
+    await program.methods
+      .initializeMembership(
+        new anchor.BN(Date.now()),
+        `Test Membership ${Date.now()}`,
+        "TEST",
+        "https://example.com/",
+        new anchor.BN(1000),
+        true,
+        5
+      )
+      .accounts({
+        groupHub: groupHub.publicKey,
+        membershipData: membershipData.publicKey,
+        admin: admin.publicKey,
+      })
+      .signers([membershipData])
+      .rpc();
+
+    const uniqueTierId = `BASIC_${Date.now()}`;
+
+    await program.methods
+      .createMembershipTier(
+        uniqueTierId,
+        new anchor.BN(30 * 24 * 60 * 60),
+        true,
+        "basic.json"
+      )
+      .accounts({
+        groupHub: groupHub.publicKey,
+        membershipData: membershipData.publicKey,
+        authority: admin.publicKey,
+      })
+      .rpc();
+
+    const account = await program.account.membershipData.fetch(membershipData.publicKey);
+    log("Membership tiers:", account.tiers);
+    expect(account.tiers.length).to.be.at.least(1);
+    expect(account.tiers.some(tier => tier.tierId === uniqueTierId)).to.be.true;
+
+    expect(account.groupHub.toString()).to.equal(groupHub.publicKey.toString());
   });
 });

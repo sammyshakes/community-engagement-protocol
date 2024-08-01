@@ -12,4 +12,6 @@ pub enum MembershipError {
     TierAlreadyExists,
     #[msg("Max tiers reached")]
     MaxTiersReached,
+    #[msg("Invalid group hub")]
+    InvalidGroupHub,
 }
