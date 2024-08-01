@@ -412,6 +412,9 @@ describe("Membership Tests", () => {
     const membershipData = anchor.web3.Keypair.generate();
     const admin = provider.wallet;
 
+    log("Creating membership data with publicKey:", membershipData.publicKey.toBase58());
+
+    try {
     await program.methods
       .initializeMembership(
         new anchor.BN(Date.now()), // Use current timestamp as a unique membership_id
@@ -432,8 +435,22 @@ describe("Membership Tests", () => {
 
     const groupHubAccount = await program.account.groupHub.fetch(groupHub.publicKey);
     log("Group Hub memberships:", groupHubAccount.memberships.map(m => m.toString()));
+    log("Group Hub memberships:", groupHubAccount.memberships.map(m => m.toBase58()));
     log("Membership Data publicKey:", membershipData.publicKey.toString());
     expect(groupHubAccount.memberships.map(m => m.toString())).to.include(membershipData.publicKey.toString());
+
+    // Fetch and log the membership data for verification
+    const membershipAccount = await program.account.membershipData.fetch(membershipData.publicKey);
+    log("Fetched membership data:", membershipAccount);
+
+    // Additional checks
+    expect(membershipAccount.groupHub.toBase58()).to.equal(groupHub.publicKey.toBase58());
+
+    log("Membership successfully added to group hub");
+  } catch (error) {
+    log("Error in adding membership to group hub:", error);
+    throw error;
+  }
   });
   
   it("Prevents initializing membership with wrong group hub", async () => {
@@ -473,6 +490,8 @@ describe("Membership Tests", () => {
     const membershipData = anchor.web3.Keypair.generate();
     const admin = provider.wallet;
 
+    log("Creating membership data with publicKey:", membershipData.publicKey.toBase58());
+
     // Initialize membership
     await program.methods
       .initializeMembership(
@@ -492,7 +511,10 @@ describe("Membership Tests", () => {
       .signers([membershipData])
       .rpc();
 
+    log("Membership initialized");
+
     const uniqueTierId = `BASIC_${Date.now()}`;
+    log("Creating membership tier:", uniqueTierId);
 
     await program.methods
       .createMembershipTier(
@@ -509,10 +531,16 @@ describe("Membership Tests", () => {
       .rpc();
 
     const account = await program.account.membershipData.fetch(membershipData.publicKey);
+    log("Fetched membership data:", account);
     log("Membership tiers:", account.tiers);
+
     expect(account.tiers.length).to.be.at.least(1);
     expect(account.tiers.some(tier => tier.tierId === uniqueTierId)).to.be.true;
+    log("Membership tier verification passed");
 
-    expect(account.groupHub.toString()).to.equal(groupHub.publicKey.toString());
+    expect(account.groupHub.toBase58()).to.equal(groupHub.publicKey.toBase58());
+    log("Group hub verification passed");
+
+    log("Membership tier successfully created within group hub context");
   });
 });
