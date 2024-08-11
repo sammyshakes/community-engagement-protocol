@@ -1,7 +1,5 @@
-use crate::group_hub::GroupHub;
-
 use super::*;
-// use anchor_lang::solana_program::sysvar;
+use crate::group_hub::GroupHub;
 use mpl_token_metadata::types::DataV2;
 
 #[derive(Accounts)]

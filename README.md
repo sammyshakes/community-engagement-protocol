@@ -19,7 +19,7 @@ This project implements a Solana-based Community Engagement Protocol using the A
 
 2. Install dependencies:
    ```
-   npm install
+   yarn install
    ```
 
 3. Build the project:

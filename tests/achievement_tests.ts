@@ -183,7 +183,7 @@ describe("Achievement Tests", () => {
         userAchievements: userAchievements.publicKey,
         authority: provider.wallet.publicKey,
         tokenMint: tokenMint.publicKey,
-        userTokenAccount: userTokenAccount,
+        // userTokenAccount: userTokenAccount,
       })
       .signers([userAchievement])
       .rpc();
@@ -238,9 +238,9 @@ describe("Achievement Tests", () => {
           achievement: achievement.publicKey,
           mint: mint.publicKey,
           admin: provider.wallet.publicKey,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: anchor.web3.SystemProgram.programId,
-          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          // tokenProgram: TOKEN_PROGRAM_ID,
+          // systemProgram: anchor.web3.SystemProgram.programId,
+          // rent: anchor.web3.SYSVAR_RENT_PUBKEY,
         })
         .signers([achievement, mint])
         .rpc();

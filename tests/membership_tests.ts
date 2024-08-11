@@ -172,16 +172,16 @@ describe("Membership Tests", () => {
         .accounts({
           membershipData: membershipData.publicKey,
           mint: mint.publicKey,
-          tokenAccount: tokenAccountAddress,
+          // tokenAccount: tokenAccountAddress,
           recipient: recipient.publicKey,
           admin: admin.publicKey,
           metadata: metadataAddress,
           masterEdition: masterEditionAddress,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
-          systemProgram: anchor.web3.SystemProgram.programId,
-          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          // tokenProgram: TOKEN_PROGRAM_ID,
+          // associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          // tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
+          // systemProgram: anchor.web3.SystemProgram.programId,
+          // rent: anchor.web3.SYSVAR_RENT_PUBKEY,
         })
         .signers([mint])
         .rpc();
@@ -363,7 +363,7 @@ describe("Membership Tests", () => {
                 .accounts({
                     membershipData: membershipData.publicKey,
                     mint: mint.publicKey,
-                    tokenAccount: tokenAccountAddress,
+                    // tokenAccount: tokenAccountAddress,
                     recipient: recipient.publicKey,
                     admin: admin.publicKey,
                     metadata: metadataAddress,
