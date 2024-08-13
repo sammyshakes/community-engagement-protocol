@@ -10,7 +10,7 @@ pub struct MembershipTier {
 
 #[account]
 pub struct MembershipData {
-    pub group_hub: Pubkey,
+    pub brand: Pubkey,
     pub membership_id: u64,
     pub name: String,
     pub symbol: String,

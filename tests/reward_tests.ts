@@ -15,7 +15,7 @@ type RewardType = {
   };
 
 type RewardAccount = {
-    groupHub: anchor.web3.PublicKey;
+    brand: anchor.web3.PublicKey;
     name: string;
     description: string;
     rewardType: RewardType;
@@ -30,39 +30,39 @@ describe("Reward Tests", () => {
 
   const program = anchor.workspace.CommunityEngagementProtocol as Program<CommunityEngagementProtocol>;
 
-  let groupHubList: anchor.web3.Keypair;
-  let groupHub: anchor.web3.Keypair;
+  let brandList: anchor.web3.Keypair;
+  let brand: anchor.web3.Keypair;
 
   before(async () => {
-    groupHubList = anchor.web3.Keypair.generate();
-    groupHub = anchor.web3.Keypair.generate();
+    brandList = anchor.web3.Keypair.generate();
+    brand = anchor.web3.Keypair.generate();
     
-    // Initialize the GroupHubList account
+    // Initialize the BrandList account
     await program.methods
-      .initializeGroupHubList()
+      .initializeBrandList()
       .accounts({
-        groupHubList: groupHubList.publicKey,
+        brandList: brandList.publicKey,
         user: provider.wallet.publicKey,
       })
-      .signers([groupHubList])
+      .signers([brandList])
       .rpc();
 
-    // Create a GroupHub
+    // Create a Brand
     await program.methods
-      .createGroupHub(
-        "Test Group Hub",
-        "A test group hub for rewards",
+      .createBrand(
+        "Test Brand",
+        "A test brand for rewards",
         null,
         null,
         null,
         []
       )
       .accounts({
-        groupHub: groupHub.publicKey,
-        groupHubList: groupHubList.publicKey,
+        brand: brand.publicKey,
+        brandList: brandList.publicKey,
         user: provider.wallet.publicKey,
       })
-      .signers([groupHub])
+      .signers([brand])
       .rpc();
   });
 
@@ -77,7 +77,7 @@ describe("Reward Tests", () => {
         new anchor.BN(1000000) // 1 million tokens
       )
       .accounts({
-        groupHub: groupHub.publicKey,
+        brand: brand.publicKey,
         reward: reward.publicKey,
         tokenMint: tokenMint.publicKey,
         authority: provider.wallet.publicKey,
@@ -115,7 +115,7 @@ describe("Reward Tests", () => {
         "https://example.com/metadata.json"
       )
       .accounts({
-        groupHub: groupHub.publicKey,
+        brand: brand.publicKey,
         reward: reward.publicKey,
         tokenMint: tokenMint.publicKey,
         authority: provider.wallet.publicKey,
@@ -157,7 +157,7 @@ describe("Reward Tests", () => {
         new anchor.BN(1000000) // 1 million tokens
       )
       .accounts({
-        groupHub: groupHub.publicKey,
+        brand: brand.publicKey,
         reward: reward.publicKey,
         tokenMint: tokenMint.publicKey,
         authority: provider.wallet.publicKey,
@@ -186,7 +186,7 @@ describe("Reward Tests", () => {
     await program.methods
       .issueFungibleReward(new anchor.BN(100)) // Issue 100 tokens
       .accounts({
-        groupHub: groupHub.publicKey,
+        brand: brand.publicKey,
         userReward: userReward.publicKey,
         reward: reward.publicKey,
         user: user.publicKey,
@@ -225,7 +225,7 @@ describe("Reward Tests", () => {
         "https://example.com/metadata.json"
       )
       .accounts({
-        groupHub: groupHub.publicKey,
+        brand: brand.publicKey,
         reward: reward.publicKey,
         tokenMint: tokenMint.publicKey,
         authority: provider.wallet.publicKey,

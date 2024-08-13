@@ -1,41 +1,35 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
-import { CommunityEngagementProtocol } from "../target/types/community_engagement_protocol";
 import { expect } from "chai";
-import {
-  TOKEN_PROGRAM_ID,
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddress,
-} from "@solana/spl-token";
-import { program, provider, groupHubList, initializeGroupHubList, createUniqueGroupHub, log, TOKEN_METADATA_PROGRAM_ID } from './common';
+import { getAssociatedTokenAddress } from "@solana/spl-token";
+import { program, provider, brandList, initializeBrandList, createUniqueBrand, log, TOKEN_METADATA_PROGRAM_ID } from './common';
 
 describe("Membership Tests", () => {
-  before(initializeGroupHubList);
+  before(initializeBrandList);
 
   let membershipData: anchor.web3.Keypair;
-  let groupHub: anchor.web3.Keypair;
+  let brand: anchor.web3.Keypair;
 
   it("Initializes membership", async () => {
     membershipData = anchor.web3.Keypair.generate();
-    groupHub = anchor.web3.Keypair.generate();
+    brand = anchor.web3.Keypair.generate();
     const admin = provider.wallet;
 
-    // First, create a group hub
+    // First, create a brand
     await program.methods
-      .createGroupHub(
-        "Test Group Hub",
-        "A test group hub for memberships",
+      .createBrand(
+        "Test Brand",
+        "A test brand for memberships",
         null,
         null,
         null,
         []
       )
       .accounts({
-        groupHub: groupHub.publicKey,
-        groupHubList: groupHubList.publicKey,
+        brand: brand.publicKey,
+        brandList: brandList.publicKey,
         user: admin.publicKey,
       })
-      .signers([groupHub])
+      .signers([brand])
       .rpc();
 
     log("Creating membership data with publicKey:", membershipData.publicKey.toBase58());
@@ -52,7 +46,7 @@ describe("Membership Tests", () => {
                 5
             )
             .accounts({
-                groupHub: groupHub.publicKey,
+                brand: brand.publicKey,
                 membershipData: membershipData.publicKey,
                 admin: admin.publicKey,
             })
@@ -64,7 +58,7 @@ describe("Membership Tests", () => {
         const account = await program.account.membershipData.fetch(membershipData.publicKey);
         log("Fetched membership data:", account);
 
-        expect(account.groupHub.toString()).to.equal(groupHub.publicKey.toString());
+        expect(account.brand.toString()).to.equal(brand.publicKey.toString());
         expect(account.membershipId.toNumber()).to.equal(1);
         expect(account.name).to.equal("Test Membership");
         expect(account.symbol).to.equal("TEST");
@@ -74,11 +68,11 @@ describe("Membership Tests", () => {
         expect(account.maxTiers).to.equal(5);
         expect(account.admin.toString()).to.equal(admin.publicKey.toString());
 
-        // Check if the membership was added to the group hub
-        const groupHubAccount = await program.account.groupHub.fetch(groupHub.publicKey);
-        log("Updated GroupHub:", groupHubAccount);
+        // Check if the membership was added to the brand
+        const brandAccount = await program.account.brand.fetch(brand.publicKey);
+        log("Updated Brand:", brandAccount);
 
-        expect(groupHubAccount.memberships.map(pk => pk.toString()))
+        expect(brandAccount.memberships.map(pk => pk.toString()))
             .to.include(membershipData.publicKey.toString());
 
         log("Membership initialization test passed");
@@ -208,23 +202,23 @@ describe("Membership Tests", () => {
   it("Creates multiple membership tiers", async () => {
     const admin = provider.wallet;
 
-    // Create a new group hub
-    const groupHub = anchor.web3.Keypair.generate();
+    // Create a new brand
+    const brand = anchor.web3.Keypair.generate();
     await program.methods
-      .createGroupHub(
-        "Multi-Tier Group Hub",
-        "A group hub for testing multiple membership tiers",
+      .createBrand(
+        "Multi-Tier Brand",
+        "A brand for testing multiple membership tiers",
         null,
         null,
         null,
         []
       )
       .accounts({
-        groupHub: groupHub.publicKey,
-        groupHubList: groupHubList.publicKey,
+        brand: brand.publicKey,
+        brandList: brandList.publicKey,
         user: admin.publicKey,
       })
-      .signers([groupHub])
+      .signers([brand])
       .rpc();
   
     // Create a new membership data account
@@ -243,7 +237,7 @@ describe("Membership Tests", () => {
           5
         )
         .accounts({
-          groupHub: groupHub.publicKey,
+          brand: brand.publicKey,
           membershipData: membershipData.publicKey,
           admin: admin.publicKey,
         })
@@ -407,8 +401,8 @@ describe("Membership Tests", () => {
     log("Minting NFTs for different membership tiers test passed");
   });
 
-  it("Adds membership to group hub", async () => {
-    const groupHub = await createUniqueGroupHub();
+  it("Adds membership to brand", async () => {
+    const brand = await createUniqueBrand();
     const membershipData = anchor.web3.Keypair.generate();
     const admin = provider.wallet;
 
@@ -426,35 +420,35 @@ describe("Membership Tests", () => {
         5
       )
       .accounts({
-        groupHub: groupHub.publicKey,
+        brand: brand.publicKey,
         membershipData: membershipData.publicKey,
         admin: admin.publicKey,
       })
       .signers([membershipData])
       .rpc();
 
-    const groupHubAccount = await program.account.groupHub.fetch(groupHub.publicKey);
-    log("Group Hub memberships:", groupHubAccount.memberships.map(m => m.toString()));
-    log("Group Hub memberships:", groupHubAccount.memberships.map(m => m.toBase58()));
+    const brandAccount = await program.account.brand.fetch(brand.publicKey);
+    log("Brand memberships:", brandAccount.memberships.map(m => m.toString()));
+    log("Brand memberships:", brandAccount.memberships.map(m => m.toBase58()));
     log("Membership Data publicKey:", membershipData.publicKey.toString());
-    expect(groupHubAccount.memberships.map(m => m.toString())).to.include(membershipData.publicKey.toString());
+    expect(brandAccount.memberships.map(m => m.toString())).to.include(membershipData.publicKey.toString());
 
     // Fetch and log the membership data for verification
     const membershipAccount = await program.account.membershipData.fetch(membershipData.publicKey);
     log("Fetched membership data:", membershipAccount);
 
     // Additional checks
-    expect(membershipAccount.groupHub.toBase58()).to.equal(groupHub.publicKey.toBase58());
+    expect(membershipAccount.brand.toBase58()).to.equal(brand.publicKey.toBase58());
 
-    log("Membership successfully added to group hub");
+    log("Membership successfully added to brand");
   } catch (error) {
-    log("Error in adding membership to group hub:", error);
+    log("Error in adding membership to brand:", error);
     throw error;
   }
   });
   
-  it("Prevents initializing membership with wrong group hub", async () => {
-    const wrongGroupHub = anchor.web3.Keypair.generate();
+  it("Prevents initializing membership with wrong brand", async () => {
+    const wrongBrand = anchor.web3.Keypair.generate();
     const newMembershipData = anchor.web3.Keypair.generate();
     const admin = provider.wallet;
   
@@ -462,7 +456,7 @@ describe("Membership Tests", () => {
       await program.methods
         .initializeMembership(
           new anchor.BN(2),
-          "Wrong Group Hub Membership",
+          "Wrong Brand Membership",
           "WGH",
           "https://example.com/",
           new anchor.BN(1000),
@@ -470,7 +464,7 @@ describe("Membership Tests", () => {
           5
         )
         .accounts({
-          groupHub: wrongGroupHub.publicKey,
+          brand: wrongBrand.publicKey,
           membershipData: newMembershipData.publicKey,
           admin: admin.publicKey,
         })
@@ -478,15 +472,15 @@ describe("Membership Tests", () => {
         .rpc();
   
       // If we reach here, the test should fail
-      expect.fail("Should not be able to initialize membership with wrong group hub");
+      expect.fail("Should not be able to initialize membership with wrong brand");
     } catch (error) {
       expect(error).to.be.an('error');
       // You might want to check for a specific error message here
     }
   });
   
-  it("Creates membership tier within group hub context", async () => {
-    const groupHub = await createUniqueGroupHub();
+  it("Creates membership tier within brand context", async () => {
+    const brand = await createUniqueBrand();
     const membershipData = anchor.web3.Keypair.generate();
     const admin = provider.wallet;
 
@@ -504,7 +498,7 @@ describe("Membership Tests", () => {
         5
       )
       .accounts({
-        groupHub: groupHub.publicKey,
+        brand: brand.publicKey,
         membershipData: membershipData.publicKey,
         admin: admin.publicKey,
       })
@@ -524,7 +518,7 @@ describe("Membership Tests", () => {
         "basic.json"
       )
       .accounts({
-        // groupHub: groupHub.publicKey,
+        // brand: brand.publicKey,
         membershipData: membershipData.publicKey,
         authority: admin.publicKey,
       })
@@ -538,9 +532,9 @@ describe("Membership Tests", () => {
     expect(account.tiers.some(tier => tier.tierId === uniqueTierId)).to.be.true;
     log("Membership tier verification passed");
 
-    expect(account.groupHub.toBase58()).to.equal(groupHub.publicKey.toBase58());
-    log("Group hub verification passed");
+    expect(account.brand.toBase58()).to.equal(brand.publicKey.toBase58());
+    log("Brand verification passed");
 
-    log("Membership tier successfully created within group hub context");
+    log("Membership tier successfully created within brand context");
   });
 });

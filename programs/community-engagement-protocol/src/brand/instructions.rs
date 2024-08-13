@@ -2,14 +2,14 @@ use super::state::*;
 use crate::errors::CepError;
 use anchor_lang::prelude::*;
 
-pub fn initialize_group_hub_list(ctx: Context<InitializeGroupHubList>) -> Result<()> {
-    let group_hub_list = &mut ctx.accounts.group_hub_list;
-    group_hub_list.group_hubs = Vec::with_capacity(200);
+pub fn initialize_brand_list(ctx: Context<InitializeBrandList>) -> Result<()> {
+    let brand_list = &mut ctx.accounts.brand_list;
+    brand_list.brands = Vec::with_capacity(200);
     Ok(())
 }
 
-pub fn create_group_hub(
-    ctx: Context<CreateGroupHub>,
+pub fn create_brand(
+    ctx: Context<CreateBrand>,
     name: String,
     description: String,
     website: Option<String>,
@@ -17,7 +17,7 @@ pub fn create_group_hub(
     category: Option<String>,
     tags: Vec<String>,
 ) -> Result<()> {
-    let group_hub = &mut ctx.accounts.group_hub;
+    let brand = &mut ctx.accounts.brand;
     let user = &ctx.accounts.user;
     let clock = Clock::get()?;
 
@@ -33,32 +33,28 @@ pub fn create_group_hub(
         return Err(CepError::TooManyTags.into());
     }
 
-    group_hub.name = name;
-    group_hub.description = description;
-    group_hub.admins = vec![user.key()];
-    group_hub.achievements = Vec::new();
-    group_hub.memberships = Vec::new();
-    group_hub.creation_date = clock.unix_timestamp;
-    group_hub.last_updated = clock.unix_timestamp;
-    group_hub.metadata = GroupHubMetadata {
+    brand.name = name;
+    brand.description = description;
+    brand.admins = vec![user.key()];
+    brand.achievements = Vec::new();
+    brand.memberships = Vec::new();
+    brand.creation_date = clock.unix_timestamp;
+    brand.last_updated = clock.unix_timestamp;
+    brand.metadata = BrandMetadata {
         website,
         social_media,
         category,
         tags,
     };
 
-    ctx.accounts.group_hub_list.add(group_hub.key());
+    ctx.accounts.brand_list.add(brand.key());
 
-    msg!("Group Hub '{}' created", group_hub.name);
+    msg!("Brand Hub '{}' created", brand.name);
     Ok(())
 }
 
-pub fn update_group_hub(
-    ctx: Context<UpdateGroupHub>,
-    name: String,
-    description: String,
-) -> Result<()> {
-    let group_hub = &mut ctx.accounts.group_hub;
+pub fn update_brand(ctx: Context<UpdateBrand>, name: String, description: String) -> Result<()> {
+    let brand = &mut ctx.accounts.brand;
     let user = &ctx.accounts.user;
 
     if name.chars().count() > 50 {
@@ -69,89 +65,89 @@ pub fn update_group_hub(
         return Err(CepError::DescriptionTooLong.into());
     }
 
-    if !group_hub.admins.contains(&user.key()) {
+    if !brand.admins.contains(&user.key()) {
         return Err(CepError::Unauthorized.into());
     }
 
-    group_hub.name = name;
-    group_hub.description = description;
+    brand.name = name;
+    brand.description = description;
 
-    msg!("Group Hub '{}' updated", group_hub.name);
+    msg!("Brand Hub '{}' updated", brand.name);
     Ok(())
 }
 
-pub fn get_group_hub_info(ctx: Context<GetGroupHubInfo>) -> Result<GroupHubInfo> {
-    let group_hub = &ctx.accounts.group_hub;
-    Ok(GroupHubInfo {
-        name: group_hub.name.clone(),
-        description: group_hub.description.clone(),
-        admins: group_hub.admins.clone(),
-        achievements: group_hub.achievements.clone(),
+pub fn get_brand_info(ctx: Context<GetBrandInfo>) -> Result<BrandInfo> {
+    let brand = &ctx.accounts.brand;
+    Ok(BrandInfo {
+        name: brand.name.clone(),
+        description: brand.description.clone(),
+        admins: brand.admins.clone(),
+        achievements: brand.achievements.clone(),
     })
 }
 
-pub fn list_all_group_hubs(ctx: Context<ListAllGroupHubs>) -> Result<Vec<Pubkey>> {
-    Ok(ctx.accounts.group_hub_list.get_all())
+pub fn list_all_brands(ctx: Context<ListAllBrands>) -> Result<Vec<Pubkey>> {
+    Ok(ctx.accounts.brand_list.get_all())
 }
 
-pub fn list_group_hub_achievements(ctx: Context<ListGroupHubAchievements>) -> Result<Vec<Pubkey>> {
-    let group_hub = &ctx.accounts.group_hub;
-    Ok(group_hub.achievements.clone())
+pub fn list_brand_achievements(ctx: Context<ListBrandAchievements>) -> Result<Vec<Pubkey>> {
+    let brand = &ctx.accounts.brand;
+    Ok(brand.achievements.clone())
 }
 
 pub fn add_admin(ctx: Context<AddAdmin>, new_admin: Pubkey) -> Result<()> {
-    let group_hub = &mut ctx.accounts.group_hub;
+    let brand = &mut ctx.accounts.brand;
     let user = &ctx.accounts.user;
 
-    if !group_hub.admins.contains(&user.key()) {
+    if !brand.admins.contains(&user.key()) {
         return Err(CepError::Unauthorized.into());
     }
 
-    if group_hub.admins.contains(&new_admin) {
+    if brand.admins.contains(&new_admin) {
         return Err(CepError::AdminAlreadyExists.into());
     }
 
-    group_hub.admins.push(new_admin);
-    msg!("New admin added to Group Hub '{}'", group_hub.name);
+    brand.admins.push(new_admin);
+    msg!("New admin added to Brand Hub '{}'", brand.name);
     Ok(())
 }
 
 pub fn remove_admin(ctx: Context<RemoveAdmin>, admin_to_remove: Pubkey) -> Result<()> {
-    let group_hub = &mut ctx.accounts.group_hub;
+    let brand = &mut ctx.accounts.brand;
     let user = &ctx.accounts.user;
 
-    if !group_hub.admins.contains(&user.key()) {
+    if !brand.admins.contains(&user.key()) {
         return Err(CepError::Unauthorized.into());
     }
 
-    if !group_hub.admins.contains(&admin_to_remove) {
+    if !brand.admins.contains(&admin_to_remove) {
         return Err(CepError::AdminNotFound.into());
     }
 
-    if group_hub.admins.len() == 1 {
+    if brand.admins.len() == 1 {
         return Err(CepError::CannotRemoveLastAdmin.into());
     }
 
-    group_hub.admins.retain(|&x| x != admin_to_remove);
-    msg!("Admin removed from Group Hub '{}'", group_hub.name);
+    brand.admins.retain(|&x| x != admin_to_remove);
+    msg!("Admin removed from Brand Hub '{}'", brand.name);
     Ok(())
 }
 
 #[derive(Accounts)]
-pub struct InitializeGroupHubList<'info> {
+pub struct InitializeBrandList<'info> {
     #[account(
         init,
         payer = user,
         space = 8 + 4 + 200 * 32 // Discriminator + Vec length + 200 Pubkeys
     )]
-    pub group_hub_list: Account<'info, GroupHubList>,
+    pub brand_list: Account<'info, BrandList>,
     #[account(mut)]
     pub user: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
-pub struct CreateGroupHub<'info> {
+pub struct CreateBrand<'info> {
     #[account(
         init,
         payer = user,
@@ -167,46 +163,46 @@ pub struct CreateGroupHub<'info> {
                 (1 + 20) + // category (Option<String>)
                 (4 + 5 * 20) // tags (Vec<String>)
     )]
-    pub group_hub: Account<'info, GroupHub>,
+    pub brand: Account<'info, Brand>,
     #[account(mut)]
-    pub group_hub_list: Account<'info, GroupHubList>,
+    pub brand_list: Account<'info, BrandList>,
     #[account(mut)]
     pub user: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
-pub struct UpdateGroupHub<'info> {
+pub struct UpdateBrand<'info> {
     #[account(mut)]
-    pub group_hub: Account<'info, GroupHub>,
+    pub brand: Account<'info, Brand>,
     pub user: Signer<'info>,
 }
 
 #[derive(Accounts)]
-pub struct GetGroupHubInfo<'info> {
-    pub group_hub: Account<'info, GroupHub>,
+pub struct GetBrandInfo<'info> {
+    pub brand: Account<'info, Brand>,
 }
 
 #[derive(Accounts)]
-pub struct ListAllGroupHubs<'info> {
-    pub group_hub_list: Account<'info, GroupHubList>,
+pub struct ListAllBrands<'info> {
+    pub brand_list: Account<'info, BrandList>,
 }
 
 #[derive(Accounts)]
-pub struct ListGroupHubAchievements<'info> {
-    pub group_hub: Account<'info, GroupHub>,
+pub struct ListBrandAchievements<'info> {
+    pub brand: Account<'info, Brand>,
 }
 
 #[derive(Accounts)]
 pub struct AddAdmin<'info> {
     #[account(mut)]
-    pub group_hub: Account<'info, GroupHub>,
+    pub brand: Account<'info, Brand>,
     pub user: Signer<'info>,
 }
 
 #[derive(Accounts)]
 pub struct RemoveAdmin<'info> {
     #[account(mut)]
-    pub group_hub: Account<'info, GroupHub>,
+    pub brand: Account<'info, Brand>,
     pub user: Signer<'info>,
 }

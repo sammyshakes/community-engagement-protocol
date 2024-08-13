@@ -23,44 +23,44 @@ anchor.setProvider(provider);
 
 export const program = anchor.workspace.CommunityEngagementProtocol as Program<CommunityEngagementProtocol>;
 
-export let groupHubList: anchor.web3.Keypair;
+export let brandList: anchor.web3.Keypair;
 
-export async function initializeGroupHubList() {
-  groupHubList = anchor.web3.Keypair.generate();
+export async function initializeBrandList() {
+  brandList = anchor.web3.Keypair.generate();
   
   await program.methods
-    .initializeGroupHubList()
+    .initializeBrandList()
     .accounts({
-      groupHubList: groupHubList.publicKey,
+      brandList: brandList.publicKey,
       user: provider.wallet.publicKey,
     })
-    .signers([groupHubList])
+    .signers([brandList])
     .rpc();
 
-  log("Initialized GroupHubList with publicKey:", groupHubList.publicKey.toBase58());
+  log("Initialized BrandList with publicKey:", brandList.publicKey.toBase58());
 }
 
-export async function createUniqueGroupHub() {
-  const groupHub = anchor.web3.Keypair.generate();
+export async function createUniqueBrand() {
+  const brand = anchor.web3.Keypair.generate();
   await program.methods
-    .createGroupHub(
-      `Test Group Hub ${Date.now()}`,
-      "A test group hub for memberships",
+    .createBrand(
+      `Test Brand ${Date.now()}`,
+      "A test brand for memberships",
       null,
       null,
       null,
       []
     )
     .accounts({
-      groupHub: groupHub.publicKey,
-      groupHubList: groupHubList.publicKey,
+      brand: brand.publicKey,
+      brandList: brandList.publicKey,
       user: provider.wallet.publicKey,
     })
-    .signers([groupHub])
+    .signers([brand])
     .rpc();
   
-  log("Created unique GroupHub with publicKey:", groupHub.publicKey.toBase58());
-  return groupHub;
+  log("Created unique Brand with publicKey:", brand.publicKey.toBase58());
+  return brand;
 }
 
 // Export the token-related constants and functions

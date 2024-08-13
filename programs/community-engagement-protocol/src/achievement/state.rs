@@ -8,7 +8,7 @@ pub enum AchievementType {
 
 #[account]
 pub struct Achievement {
-    pub group_hub: Pubkey,
+    pub brand: Pubkey,
     pub name: String,
     pub description: String,
     pub criteria: String,
@@ -25,7 +25,7 @@ pub struct Achievement {
 pub struct UserAchievement {
     pub user: Pubkey,
     pub achievement: Pubkey,
-    pub group_hub: Pubkey,
+    pub brand: Pubkey,
     pub awarded_at: i64,
 }
 

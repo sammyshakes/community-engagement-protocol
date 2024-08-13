@@ -14,7 +14,7 @@ pub enum RewardType {
 
 #[account]
 pub struct Reward {
-    pub group_hub: Pubkey,
+    pub brand: Pubkey,
     pub name: String,
     pub description: String,
     pub reward_type: RewardType,
@@ -27,7 +27,7 @@ pub struct Reward {
 pub struct UserReward {
     pub user: Pubkey,
     pub reward: Pubkey,
-    pub group_hub: Pubkey,
+    pub brand: Pubkey,
     pub awarded_at: i64,
 }
 

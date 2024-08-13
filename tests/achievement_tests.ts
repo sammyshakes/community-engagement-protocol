@@ -1,27 +1,27 @@
 // tests/achievement_tests.ts
 import { expect } from 'chai';
 import * as anchor from "@coral-xyz/anchor";
-import { program, provider, groupHubList, initializeGroupHubList, log, TOKEN_METADATA_PROGRAM_ID, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from './common';
+import { program, provider, brandList, initializeBrandList, log, TOKEN_METADATA_PROGRAM_ID, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from './common';
 
 describe("Achievement Tests", () => {
-  before(initializeGroupHubList);
+  before(initializeBrandList);
 
-  it("Lists achievements for a group hub", async () => {
-    const groupHub = anchor.web3.Keypair.generate();
-    const name = "Test Group Hub";
-    const description = "A test group hub for our community engagement protocol";
+  it("Lists achievements for a brand", async () => {
+    const brand = anchor.web3.Keypair.generate();
+    const name = "Test Brand";
+    const description = "A test brand for our community engagement protocol";
 
     await program.methods
-      .createGroupHub(name, description, null, null, null, [])
+      .createBrand(name, description, null, null, null, [])
       .accounts({
-        groupHub: groupHub.publicKey,
-        groupHubList: groupHubList.publicKey,
+        brand: brand.publicKey,
+        brandList: brandList.publicKey,
         user: provider.wallet.publicKey,
       })
-      .signers([groupHub])
+      .signers([brand])
       .rpc();
 
-    log("Created GroupHub for listing achievements test with publicKey:", groupHub.publicKey.toBase58());
+    log("Created Brand for listing achievements test with publicKey:", brand.publicKey.toBase58());
 
     const achievementCount = 3;
     const achievementKeys: anchor.web3.PublicKey[] = [];
@@ -31,7 +31,7 @@ describe("Achievement Tests", () => {
       await program.methods
         .createAchievement(`Achievement ${i+1}`, `Description ${i+1}`, `Criteria ${i+1}`, 100 * (i+1))
         .accounts({
-          groupHub: groupHub.publicKey,
+          brand: brand.publicKey,
           achievement: achievement.publicKey,
           authority: provider.wallet.publicKey,
         })
@@ -43,13 +43,13 @@ describe("Achievement Tests", () => {
     }
 
     const achievements = await program.methods
-      .listGroupHubAchievements()
+      .listBrandAchievements()
       .accounts({
-        groupHub: groupHub.publicKey,
+        brand: brand.publicKey,
       })
       .view();
 
-    log("Listed GroupHub Achievements:", achievements);
+    log("Listed Brand Achievements:", achievements);
 
     expect(achievements).to.have.lengthOf(achievementCount);
     achievementKeys.forEach(key => {
@@ -58,18 +58,18 @@ describe("Achievement Tests", () => {
   });
 
   it("Gets achievement info", async () => {
-    const groupHub = anchor.web3.Keypair.generate();
+    const brand = anchor.web3.Keypair.generate();
     await program.methods
-      .createGroupHub("Test Group Hub", "A test group hub", null, null, null, [])
+      .createBrand("Test Brand", "A test brand", null, null, null, [])
       .accounts({
-        groupHub: groupHub.publicKey,
-        groupHubList: groupHubList.publicKey,
+        brand: brand.publicKey,
+        brandList: brandList.publicKey,
         user: provider.wallet.publicKey,
       })
-      .signers([groupHub])
+      .signers([brand])
       .rpc();
 
-    log("Created GroupHub for get achievement info test with publicKey:", groupHub.publicKey.toBase58());
+    log("Created Brand for get achievement info test with publicKey:", brand.publicKey.toBase58());
 
     const achievement = anchor.web3.Keypair.generate();
     const name = "Test Achievement";
@@ -80,7 +80,7 @@ describe("Achievement Tests", () => {
     await program.methods
       .createAchievement(name, description, criteria, points)
       .accounts({
-        groupHub: groupHub.publicKey,
+        brand: brand.publicKey,
         achievement: achievement.publicKey,
         authority: provider.wallet.publicKey,
       })
@@ -102,38 +102,38 @@ describe("Achievement Tests", () => {
     expect(achievementInfo.description).to.equal(description);
     expect(achievementInfo.criteria).to.equal(criteria);
     expect(achievementInfo.points).to.equal(points);
-    expect(achievementInfo.groupHub.toString()).to.equal(groupHub.publicKey.toString());
+    expect(achievementInfo.brand.toString()).to.equal(brand.publicKey.toString());
     expect(achievementInfo.createdAt.toNumber()).to.be.a('number');
     expect(achievementInfo.updatedAt.toNumber()).to.be.a('number');
   });
 
   it("Creates and awards a fungible achievement", async () => {
     log("Starting fungible achievement test");
-    const groupHub = anchor.web3.Keypair.generate();
+    const brand = anchor.web3.Keypair.generate();
     const achievement = anchor.web3.Keypair.generate();
     const tokenMint = anchor.web3.Keypair.generate();
     const user = anchor.web3.Keypair.generate();
     const userAchievements = anchor.web3.Keypair.generate();
     const userAchievement = anchor.web3.Keypair.generate();
   
-    log("Creating group hub");
+    log("Creating brand");
     await program.methods
-      .createGroupHub(
-        "Test Group Hub",
-        "A test group hub for fungible achievements",
+      .createBrand(
+        "Test Brand",
+        "A test brand for fungible achievements",
         null,
         null,
         null,
         []
       )
       .accounts({
-        groupHub: groupHub.publicKey,
-        groupHubList: groupHubList.publicKey,
+        brand: brand.publicKey,
+        brandList: brandList.publicKey,
         user: provider.wallet.publicKey,
       })
-      .signers([groupHub])
+      .signers([brand])
       .rpc();
-    log("Group hub created with publicKey:", groupHub.publicKey.toBase58());
+    log("Brand created with publicKey:", brand.publicKey.toBase58());
   
     log("Creating fungible achievement");
     await program.methods
@@ -145,7 +145,7 @@ describe("Achievement Tests", () => {
         new anchor.BN(1000000)
       )
       .accounts({
-        groupHub: groupHub.publicKey,
+        brand: brand.publicKey,
         achievement: achievement.publicKey,
         tokenMint: tokenMint.publicKey,
         authority: provider.wallet.publicKey,
@@ -176,7 +176,7 @@ describe("Achievement Tests", () => {
     await program.methods
       .awardFungibleAchievement()
       .accounts({
-        groupHub: groupHub.publicKey,
+        brand: brand.publicKey,
         userAchievement: userAchievement.publicKey,
         achievement: achievement.publicKey,
         user: user.publicKey,
@@ -204,18 +204,18 @@ describe("Achievement Tests", () => {
 
 
   it("Creates a non-fungible achievement", async () => {
-    const groupHub = anchor.web3.Keypair.generate();
+    const brand = anchor.web3.Keypair.generate();
     await program.methods
-      .createGroupHub("Test Group Hub", "A test group hub", null, null, null, [])
+      .createBrand("Test Brand", "A test brand", null, null, null, [])
       .accounts({
-        groupHub: groupHub.publicKey,
-        groupHubList: groupHubList.publicKey,
+        brand: brand.publicKey,
+        brandList: brandList.publicKey,
         user: provider.wallet.publicKey,
       })
-      .signers([groupHub])
+      .signers([brand])
       .rpc();
   
-    log("Created GroupHub for non-fungible achievement test with publicKey:", groupHub.publicKey.toBase58());
+    log("Created Brand for non-fungible achievement test with publicKey:", brand.publicKey.toBase58());
   
     const achievement = anchor.web3.Keypair.generate();
     const mint = anchor.web3.Keypair.generate();
@@ -234,7 +234,7 @@ describe("Achievement Tests", () => {
           "https://example.com/metadata.json"
         )
         .accounts({
-          groupHub: groupHub.publicKey,
+          brand: brand.publicKey,
           achievement: achievement.publicKey,
           mint: mint.publicKey,
           admin: provider.wallet.publicKey,

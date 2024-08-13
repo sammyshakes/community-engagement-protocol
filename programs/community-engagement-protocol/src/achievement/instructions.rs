@@ -1,6 +1,6 @@
 use super::state::*;
+use crate::brand::state::Brand;
 use crate::errors::CepError;
-use crate::group_hub::state::GroupHub;
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -19,7 +19,7 @@ pub fn create_achievement(
     points: u32,
 ) -> Result<()> {
     let achievement = &mut ctx.accounts.achievement;
-    let group_hub = &mut ctx.accounts.group_hub;
+    let brand = &mut ctx.accounts.brand;
     let clock = Clock::get()?;
 
     if name.chars().count() > 50 {
@@ -29,7 +29,7 @@ pub fn create_achievement(
         return Err(CepError::DescriptionTooLong.into());
     }
 
-    achievement.group_hub = group_hub.key();
+    achievement.brand = brand.key();
     achievement.name = name;
     achievement.description = description;
     achievement.criteria = criteria;
@@ -37,12 +37,12 @@ pub fn create_achievement(
     achievement.created_at = clock.unix_timestamp;
     achievement.updated_at = clock.unix_timestamp;
 
-    group_hub.achievements.push(achievement.key());
+    brand.achievements.push(achievement.key());
 
     msg!(
-        "Achievement '{}' created for Group Hub '{}'",
+        "Achievement '{}' created for Brand '{}'",
         achievement.name,
-        group_hub.name
+        brand.name
     );
     Ok(())
 }
@@ -56,7 +56,7 @@ pub fn create_fungible_achievement(
     supply: u64,
 ) -> Result<()> {
     let achievement = &mut ctx.accounts.achievement;
-    let group_hub = &mut ctx.accounts.group_hub;
+    let brand = &mut ctx.accounts.brand;
     let clock = Clock::get()?;
 
     if name.chars().count() > 50 {
@@ -66,7 +66,7 @@ pub fn create_fungible_achievement(
         return Err(CepError::DescriptionTooLong.into());
     }
 
-    achievement.group_hub = group_hub.key();
+    achievement.brand = brand.key();
     achievement.name = name;
     achievement.description = description;
     achievement.criteria = criteria;
@@ -77,14 +77,14 @@ pub fn create_fungible_achievement(
     achievement.token_mint = Some(ctx.accounts.token_mint.key());
     achievement.token_supply = Some(supply);
 
-    group_hub.achievements.push(achievement.key());
+    brand.achievements.push(achievement.key());
 
     // The mint is now initialized automatically by Anchor
 
     msg!(
-        "Fungible Achievement '{}' created for Group Hub '{}'",
+        "Fungible Achievement '{}' created for Brand '{}'",
         achievement.name,
-        group_hub.name
+        brand.name
     );
     Ok(())
 }
@@ -92,7 +92,7 @@ pub fn create_fungible_achievement(
 #[derive(Accounts)]
 pub struct CreateNonFungibleAchievement<'info> {
     #[account(mut)]
-    pub group_hub: Account<'info, GroupHub>,
+    pub brand: Account<'info, Brand>,
 
     #[account(
         init,
@@ -135,7 +135,7 @@ pub fn create_non_fungible_achievement(
 
     // Set achievement data
     let achievement = &mut ctx.accounts.achievement;
-    achievement.group_hub = ctx.accounts.group_hub.key();
+    achievement.brand = ctx.accounts.brand.key();
     achievement.name = name.clone();
     achievement.description = description;
     achievement.criteria = criteria;
@@ -147,8 +147,8 @@ pub fn create_non_fungible_achievement(
     achievement.token_supply = Some(0);
     achievement.metadata_uri = Some(metadata_uri.clone());
 
-    // Add achievement to group hub
-    ctx.accounts.group_hub.achievements.push(achievement.key());
+    // Add achievement to brand
+    ctx.accounts.brand.achievements.push(achievement.key());
 
     msg!("Non-fungible achievement created successfully");
     Ok(())
@@ -162,7 +162,7 @@ pub fn award_fungible_achievement(ctx: Context<AwardFungibleAchievement>) -> Res
     // Record the achievement award
     user_achievement.user = ctx.accounts.user.key();
     user_achievement.achievement = achievement.key();
-    user_achievement.group_hub = achievement.group_hub;
+    user_achievement.brand = achievement.brand;
     user_achievement.awarded_at = clock.unix_timestamp;
 
     // Add the achievement to the user's list of achievements
@@ -204,7 +204,7 @@ pub fn award_non_fungible_achievement(ctx: Context<AwardNonFungibleAchievement>)
     // Record the achievement award
     user_achievement.user = ctx.accounts.user.key();
     user_achievement.achievement = achievement.key();
-    user_achievement.group_hub = achievement.group_hub;
+    user_achievement.brand = achievement.brand;
     user_achievement.awarded_at = clock.unix_timestamp;
 
     // Add the achievement to the user's list of achievements
@@ -280,7 +280,7 @@ pub fn get_achievement_info(ctx: Context<GetAchievementInfo>) -> Result<Achievem
         description: achievement.description.clone(),
         criteria: achievement.criteria.clone(),
         points: achievement.points,
-        group_hub: achievement.group_hub,
+        brand: achievement.brand,
         created_at: achievement.created_at,
         updated_at: achievement.updated_at,
     })
@@ -294,7 +294,7 @@ pub fn list_user_achievements(ctx: Context<ListUserAchievements>) -> Result<Vec<
 #[derive(Accounts)]
 pub struct CreateAchievement<'info> {
     #[account(mut)]
-    pub group_hub: Account<'info, GroupHub>,
+    pub brand: Account<'info, Brand>,
     #[account(
         init,
         payer = authority,
@@ -309,7 +309,7 @@ pub struct CreateAchievement<'info> {
 #[derive(Accounts)]
 pub struct CreateFungibleAchievement<'info> {
     #[account(mut)]
-    pub group_hub: Account<'info, GroupHub>,
+    pub brand: Account<'info, Brand>,
     #[account(
         init,
         payer = authority,
@@ -334,14 +334,14 @@ pub struct CreateFungibleAchievement<'info> {
 #[derive(Accounts)]
 pub struct AwardFungibleAchievement<'info> {
     #[account(mut)]
-    pub group_hub: Account<'info, GroupHub>,
+    pub brand: Account<'info, Brand>,
     #[account(
         init,
         payer = authority,
         space = 8 + 32 + 32 + 32 + 8
     )]
     pub user_achievement: Account<'info, UserAchievement>,
-    #[account(mut, constraint = achievement.group_hub == group_hub.key())]
+    #[account(mut, constraint = achievement.brand == brand.key())]
     pub achievement: Account<'info, Achievement>,
     /// CHECK: This account is used to store the public key of the user receiving the achievement
     pub user: UncheckedAccount<'info>,
@@ -367,14 +367,14 @@ pub struct AwardFungibleAchievement<'info> {
 #[derive(Accounts)]
 pub struct AwardNonFungibleAchievement<'info> {
     #[account(mut)]
-    pub group_hub: Account<'info, GroupHub>,
+    pub brand: Account<'info, Brand>,
     #[account(
         init,
         payer = authority,
         space = 8 + 32 + 32 + 32 + 8
     )]
     pub user_achievement: Account<'info, UserAchievement>,
-    #[account(mut, constraint = achievement.group_hub == group_hub.key())]
+    #[account(mut, constraint = achievement.brand == brand.key())]
     pub achievement: Account<'info, Achievement>,
     /// CHECK: This account is used to store the public key of the user receiving the achievement
     pub user: UncheckedAccount<'info>,
@@ -446,7 +446,7 @@ pub struct AchievementInfo {
     pub description: String,
     pub criteria: String,
     pub points: u32,
-    pub group_hub: Pubkey,
+    pub brand: Pubkey,
     pub created_at: i64,
     pub updated_at: i64,
 }

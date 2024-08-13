@@ -1,6 +1,6 @@
 use super::state::*;
+use crate::brand::state::Brand;
 use crate::errors::CepError;
-use crate::group_hub::state::GroupHub;
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
@@ -19,7 +19,7 @@ pub fn create_fungible_reward(
     supply: u64,
 ) -> Result<()> {
     let reward = &mut ctx.accounts.reward;
-    let group_hub = &ctx.accounts.group_hub;
+    let brand = &ctx.accounts.brand;
     let clock = Clock::get()?;
 
     if name.chars().count() > 50 {
@@ -29,7 +29,7 @@ pub fn create_fungible_reward(
         return Err(CepError::DescriptionTooLong.into());
     }
 
-    reward.group_hub = group_hub.key();
+    reward.brand = brand.key();
     reward.name = name;
     reward.description = description;
     reward.reward_type = RewardType::Fungible {
@@ -49,7 +49,7 @@ pub fn create_non_fungible_reward(
     metadata_uri: String,
 ) -> Result<()> {
     let reward = &mut ctx.accounts.reward;
-    let group_hub = &ctx.accounts.group_hub;
+    let brand = &ctx.accounts.brand;
     let clock = Clock::get()?;
 
     if name.chars().count() > 50 {
@@ -62,7 +62,7 @@ pub fn create_non_fungible_reward(
         return Err(CepError::UriTooLong.into());
     }
 
-    reward.group_hub = group_hub.key();
+    reward.brand = brand.key();
     reward.name = name;
     reward.description = description;
     reward.reward_type = RewardType::NonFungible {
@@ -99,7 +99,7 @@ pub fn issue_fungible_reward(ctx: Context<IssueFungibleReward>, amount: u64) -> 
 
     user_reward.user = ctx.accounts.user.key();
     user_reward.reward = reward.key();
-    user_reward.group_hub = reward.group_hub;
+    user_reward.brand = reward.brand;
     user_reward.awarded_at = clock.unix_timestamp;
 
     ctx.accounts.user_rewards.rewards.push(reward.key());
@@ -177,7 +177,7 @@ pub struct InitializeUserRewards<'info> {
 #[derive(Accounts)]
 pub struct CreateFungibleReward<'info> {
     #[account(mut)]
-    pub group_hub: Account<'info, GroupHub>,
+    pub brand: Account<'info, Brand>,
     #[account(
         init,
         payer = authority,
@@ -202,7 +202,7 @@ pub struct CreateFungibleReward<'info> {
 #[derive(Accounts)]
 pub struct CreateNonFungibleReward<'info> {
     #[account(mut)]
-    pub group_hub: Account<'info, GroupHub>,
+    pub brand: Account<'info, Brand>,
     #[account(
         init,
         payer = authority,
@@ -227,7 +227,7 @@ pub struct CreateNonFungibleReward<'info> {
 #[derive(Accounts)]
 pub struct IssueFungibleReward<'info> {
     #[account(mut)]
-    pub group_hub: Account<'info, GroupHub>,
+    pub brand: Account<'info, Brand>,
     #[account(
         init,
         payer = authority,
@@ -260,8 +260,8 @@ pub struct IssueFungibleReward<'info> {
 #[derive(Accounts)]
 pub struct IssueNonFungibleReward<'info> {
     #[account(mut)]
-    pub group_hub: Account<'info, GroupHub>,
-    #[account(mut, has_one = group_hub)]
+    pub brand: Account<'info, Brand>,
+    #[account(mut, has_one = brand)]
     pub reward: Account<'info, Reward>,
     #[account(
         init,

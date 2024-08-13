@@ -1,14 +1,14 @@
 use anchor_lang::prelude::*;
 
 pub mod achievement;
+pub mod brand;
 pub mod errors;
-pub mod group_hub;
 pub mod membership;
 pub mod reward;
 
 use achievement::instructions::*;
-use group_hub::instructions::*;
-use group_hub::state::GroupHubInfo;
+use brand::instructions::*;
+use brand::state::BrandInfo;
 use membership::instructions::*;
 use reward::instructions::*;
 
@@ -18,13 +18,13 @@ declare_id!("7FQ74JMt2Eeca2RD2aLVBv4No8e9PUt8SHfGsUzKhqje");
 pub mod community_engagement_protocol {
     use super::*;
 
-    // Group Hub Instructions
-    pub fn initialize_group_hub_list(ctx: Context<InitializeGroupHubList>) -> Result<()> {
-        group_hub::instructions::initialize_group_hub_list(ctx)
+    // Brand Hub Instructions
+    pub fn initialize_brand_list(ctx: Context<InitializeBrandList>) -> Result<()> {
+        brand::instructions::initialize_brand_list(ctx)
     }
 
-    pub fn create_group_hub(
-        ctx: Context<CreateGroupHub>,
+    pub fn create_brand(
+        ctx: Context<CreateBrand>,
         name: String,
         description: String,
         website: Option<String>,
@@ -32,7 +32,7 @@ pub mod community_engagement_protocol {
         category: Option<String>,
         tags: Vec<String>,
     ) -> Result<()> {
-        group_hub::instructions::create_group_hub(
+        brand::instructions::create_brand(
             ctx,
             name,
             description,
@@ -43,28 +43,28 @@ pub mod community_engagement_protocol {
         )
     }
 
-    pub fn update_group_hub(
-        ctx: Context<UpdateGroupHub>,
+    pub fn update_brand(
+        ctx: Context<UpdateBrand>,
         name: String,
         description: String,
     ) -> Result<()> {
-        group_hub::instructions::update_group_hub(ctx, name, description)
+        brand::instructions::update_brand(ctx, name, description)
     }
 
-    pub fn get_group_hub_info(ctx: Context<GetGroupHubInfo>) -> Result<GroupHubInfo> {
-        group_hub::instructions::get_group_hub_info(ctx)
+    pub fn get_brand_info(ctx: Context<GetBrandInfo>) -> Result<BrandInfo> {
+        brand::instructions::get_brand_info(ctx)
     }
 
-    pub fn list_all_group_hubs(ctx: Context<ListAllGroupHubs>) -> Result<Vec<Pubkey>> {
-        group_hub::instructions::list_all_group_hubs(ctx)
+    pub fn list_all_brands(ctx: Context<ListAllBrands>) -> Result<Vec<Pubkey>> {
+        brand::instructions::list_all_brands(ctx)
     }
 
     pub fn add_admin(ctx: Context<AddAdmin>, new_admin: Pubkey) -> Result<()> {
-        group_hub::instructions::add_admin(ctx, new_admin)
+        brand::instructions::add_admin(ctx, new_admin)
     }
 
     pub fn remove_admin(ctx: Context<RemoveAdmin>, admin_to_remove: Pubkey) -> Result<()> {
-        group_hub::instructions::remove_admin(ctx, admin_to_remove)
+        brand::instructions::remove_admin(ctx, admin_to_remove)
     }
 
     // Membership Instructions
@@ -152,10 +152,8 @@ pub mod community_engagement_protocol {
         achievement::instructions::award_non_fungible_achievement(ctx)
     }
 
-    pub fn list_group_hub_achievements(
-        ctx: Context<ListGroupHubAchievements>,
-    ) -> Result<Vec<Pubkey>> {
-        group_hub::instructions::list_group_hub_achievements(ctx)
+    pub fn list_brand_achievements(ctx: Context<ListBrandAchievements>) -> Result<Vec<Pubkey>> {
+        brand::instructions::list_brand_achievements(ctx)
     }
 
     pub fn get_achievement_info(ctx: Context<GetAchievementInfo>) -> Result<AchievementInfo> {
