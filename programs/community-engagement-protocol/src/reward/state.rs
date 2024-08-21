@@ -24,20 +24,6 @@ pub struct Reward {
 }
 
 #[account]
-pub struct UserReward {
-    pub user: Pubkey,
-    pub reward: Pubkey,
-    pub brand: Pubkey,
-    pub awarded_at: i64,
-}
-
-#[account]
-pub struct UserRewards {
-    pub user: Pubkey,
-    pub rewards: Vec<Pubkey>,
-}
-
-#[account]
 pub struct NonFungibleRewardInstance {
     pub reward: Pubkey,
     pub owner: Pubkey,

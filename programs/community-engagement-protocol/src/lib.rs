@@ -177,11 +177,6 @@ pub mod community_engagement_protocol {
         achievement::instructions::initialize_user_achievements(ctx)
     }
 
-    // Reward Instructions
-    pub fn initialize_user_rewards(ctx: Context<InitializeUserRewards>) -> Result<()> {
-        reward::instructions::initialize_user_rewards(ctx)
-    }
-
     pub fn create_fungible_reward(
         ctx: Context<CreateFungibleReward>,
         name: String,

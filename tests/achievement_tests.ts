@@ -1,7 +1,7 @@
 // tests/achievement_tests.ts
 import { expect } from 'chai';
 import * as anchor from "@coral-xyz/anchor";
-import { program, provider, brandList, initializeProgramState, initializeBrandList, log, TOKEN_METADATA_PROGRAM_ID, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR } from './common';
+import { program, provider, brandList, initializeProgramState, initializeBrandList, log, TOKEN_METADATA_PROGRAM_ID, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR, fundAccount } from './common';
 
 describe("Achievement Tests", () => {
   before(initializeProgramState);
@@ -262,6 +262,99 @@ describe("Achievement Tests", () => {
     } catch (error) {
       console.error("Error creating non-fungible achievement:", error);
       throw error;
+    }
+  });
+
+  it("Fails to create a fungible achievement with non-admin signer", async () => {
+    const brand = anchor.web3.Keypair.generate();
+    await program.methods
+      .createBrand("Test Brand", "A test brand", null, null, null, [])
+      .accounts({
+        brand: brand.publicKey,
+        brandList: brandList.publicKey,
+        tronicAdmin: TRONIC_ADMIN_PUBKEY,
+      })
+      .signers([brand, TRONIC_ADMIN_KEYPAIR])
+      .rpc();
+
+    log("Created Brand for non-admin fungible achievement test with publicKey:", brand.publicKey.toBase58());
+
+    const achievement = anchor.web3.Keypair.generate();
+    const tokenMint = anchor.web3.Keypair.generate();
+    const nonAdminKeypair = anchor.web3.Keypair.generate();
+
+    // fund the non-admin keypair
+    await fundAccount(program.provider.connection, nonAdminKeypair.publicKey);
+
+    try {
+      await program.methods
+        .createFungibleAchievement(
+          "Test Fungible Achievement",
+          "A test fungible achievement",
+          "Complete the test",
+          100,
+          new anchor.BN(1000000)
+        )
+        .accounts({
+          brand: brand.publicKey,
+          achievement: achievement.publicKey,
+          tokenMint: tokenMint.publicKey,
+          tronicAdmin: nonAdminKeypair.publicKey,
+        })
+        .signers([achievement, tokenMint, nonAdminKeypair])
+        .rpc();
+
+        console.log("Fungible achievement created with publicKey:", achievement.publicKey.toBase58());
+
+      expect.fail("Expected an error but none was thrown");
+    } catch (error) {
+      log("Fungible achievement creation failed as expected", error.message);
+      expect(error.message).to.include("Error Code: UnauthorizedTronicAdmin");
+    }
+  });
+
+  it("Fails to create a non-fungible achievement with non-admin signer", async () => {
+    const brand = anchor.web3.Keypair.generate();
+    await program.methods
+      .createBrand("Test Brand", "A test brand", null, null, null, [])
+      .accounts({
+        brand: brand.publicKey,
+        brandList: brandList.publicKey,
+        tronicAdmin: TRONIC_ADMIN_PUBKEY,
+      })
+      .signers([brand, TRONIC_ADMIN_KEYPAIR])
+      .rpc();
+
+    log("Created Brand for non-admin non-fungible achievement test with publicKey:", brand.publicKey.toBase58());
+
+    const achievement = anchor.web3.Keypair.generate();
+    const mint = anchor.web3.Keypair.generate();
+    const nonAdminKeypair = anchor.web3.Keypair.generate();
+
+    // fund the non-admin keypair
+    await fundAccount(program.provider.connection, nonAdminKeypair.publicKey);
+
+    try {
+      await program.methods
+        .createNonFungibleAchievement(
+          "Test Non-Fungible Achievement",
+          "A test non-fungible achievement",
+          "Complete the special test",
+          1000,
+          "https://example.com/metadata.json"
+        )
+        .accounts({
+          brand: brand.publicKey,
+          achievement: achievement.publicKey,
+          mint: mint.publicKey,
+          tronicAdmin: nonAdminKeypair.publicKey,
+        })
+        .signers([achievement, mint, nonAdminKeypair])
+        .rpc();
+
+      expect.fail("Expected an error but none was thrown");
+    } catch (error) {
+      expect(error.message).to.include("Error Code: UnauthorizedTronicAdmin");
     }
   });
 });

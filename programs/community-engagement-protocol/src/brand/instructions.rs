@@ -23,12 +23,7 @@ pub fn create_brand(
 ) -> Result<()> {
     let brand = &mut ctx.accounts.brand;
     let clock = Clock::get()?;
-    let program_state = &ctx.accounts.program_state;
 
-    msg!(
-        "Creating brand with Tronic Admin: {}",
-        program_state.tronic_admin
-    );
     msg!("Signer public key: {}", ctx.accounts.tronic_admin.key());
 
     if name.chars().count() > 50 {

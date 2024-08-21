@@ -3,6 +3,8 @@ import { Program } from "@coral-xyz/anchor";
 import { CommunityEngagementProtocol } from "../target/types/community_engagement_protocol";
 import { expect } from 'chai';
 
+import { program, provider, brandList, initializeProgramState, initializeBrandList, log, fundAccount, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR } from './common';
+
 type RewardType = {
     fungible?: {
       tokenMint: anchor.web3.PublicKey;
@@ -25,27 +27,14 @@ type RewardAccount = {
   };
 
 describe("Reward Tests", () => {
-  const provider = anchor.AnchorProvider.env();
-  anchor.setProvider(provider);
+  before(initializeProgramState);
+  before(initializeBrandList);
 
-  const program = anchor.workspace.CommunityEngagementProtocol as Program<CommunityEngagementProtocol>;
-
-  let brandList: anchor.web3.Keypair;
   let brand: anchor.web3.Keypair;
 
   before(async () => {
-    brandList = anchor.web3.Keypair.generate();
+    // brandList = anchor.web3.Keypair.generate();
     brand = anchor.web3.Keypair.generate();
-    
-    // Initialize the BrandList account
-    await program.methods
-      .initializeBrandList()
-      .accounts({
-        brandList: brandList.publicKey,
-        user: provider.wallet.publicKey,
-      })
-      .signers([brandList])
-      .rpc();
 
     // Create a Brand
     await program.methods
@@ -60,9 +49,9 @@ describe("Reward Tests", () => {
       .accounts({
         brand: brand.publicKey,
         brandList: brandList.publicKey,
-        user: provider.wallet.publicKey,
+        tronicAdmin: TRONIC_ADMIN_PUBKEY,
       })
-      .signers([brand])
+      .signers([brand, TRONIC_ADMIN_KEYPAIR])
       .rpc();
   });
 
@@ -80,9 +69,9 @@ describe("Reward Tests", () => {
         brand: brand.publicKey,
         reward: reward.publicKey,
         tokenMint: tokenMint.publicKey,
-        authority: provider.wallet.publicKey,
+        tronicAdmin: TRONIC_ADMIN_PUBKEY,
       })
-      .signers([reward, tokenMint])
+      .signers([reward, tokenMint, TRONIC_ADMIN_KEYPAIR])
       .rpc();
   
     // Fetch and check the reward account
@@ -118,9 +107,9 @@ describe("Reward Tests", () => {
         brand: brand.publicKey,
         reward: reward.publicKey,
         tokenMint: tokenMint.publicKey,
-        authority: provider.wallet.publicKey,
+        tronicAdmin: TRONIC_ADMIN_PUBKEY,
       })
-      .signers([reward, tokenMint])
+      .signers([reward, tokenMint, TRONIC_ADMIN_KEYPAIR])
       .rpc();
 
     // Fetch and check the reward account
@@ -143,7 +132,6 @@ describe("Reward Tests", () => {
     const reward = anchor.web3.Keypair.generate();
     const tokenMint = anchor.web3.Keypair.generate();
     const user = anchor.web3.Keypair.generate();
-    const userRewards = anchor.web3.Keypair.generate();
 
     // Airdrop some SOL to the user for rent
     const signature = await provider.connection.requestAirdrop(user.publicKey, 1000000000);
@@ -160,24 +148,12 @@ describe("Reward Tests", () => {
         brand: brand.publicKey,
         reward: reward.publicKey,
         tokenMint: tokenMint.publicKey,
-        authority: provider.wallet.publicKey,
+        tronicAdmin: TRONIC_ADMIN_PUBKEY,
       })
-      .signers([reward, tokenMint])
-      .rpc();
-
-    // Initialize user rewards
-    await program.methods
-      .initializeUserRewards()
-      .accounts({
-        userRewards: userRewards.publicKey,
-        user: user.publicKey,
-        authority: provider.wallet.publicKey,
-      })
-      .signers([userRewards, user])
+      .signers([reward, tokenMint, TRONIC_ADMIN_KEYPAIR])
       .rpc();
 
     // Issue the reward
-    const userReward = anchor.web3.Keypair.generate();
     const userTokenAccount = await anchor.utils.token.associatedAddress({
       mint: tokenMint.publicKey,
       owner: user.publicKey
@@ -187,31 +163,30 @@ describe("Reward Tests", () => {
       .issueFungibleReward(new anchor.BN(100)) // Issue 100 tokens
       .accounts({
         brand: brand.publicKey,
-        userReward: userReward.publicKey,
         reward: reward.publicKey,
         user: user.publicKey,
-        userRewards: userRewards.publicKey,
-        authority: provider.wallet.publicKey,
+        tronicAdmin: TRONIC_ADMIN_PUBKEY,
         tokenMint: tokenMint.publicKey,
       })
-      .signers([userReward])
+      .signers([TRONIC_ADMIN_KEYPAIR])
       .rpc();
 
     // Verify the reward issuance
     const userTokenAccountInfo = await provider.connection.getTokenAccountBalance(userTokenAccount);
     expect(userTokenAccountInfo.value.uiAmount).to.equal(100);
 
-    const updatedUserRewards = await program.account.userRewards.fetch(userRewards.publicKey);
-    expect(updatedUserRewards.rewards).to.have.lengthOf(1);
-    expect(updatedUserRewards.rewards[0].toString()).to.equal(reward.publicKey.toString());
   });
 
   it("Issues a non-fungible reward", async () => {
     const reward = anchor.web3.Keypair.generate();
     const tokenMint = anchor.web3.Keypair.generate();
     const user = anchor.web3.Keypair.generate();
-    const userRewards = anchor.web3.Keypair.generate();
     const rewardInstance = anchor.web3.Keypair.generate();
+
+    console.log("reward:", reward.publicKey.toBase58());
+    console.log("tokenMint:", tokenMint.publicKey.toBase58());
+    console.log("user:", user.publicKey.toBase58());
+    console.log("rewardInstance:", rewardInstance.publicKey.toBase58());
   
     // Airdrop some SOL to the user for rent
     const signature = await provider.connection.requestAirdrop(user.publicKey, 1000000000);
@@ -228,22 +203,12 @@ describe("Reward Tests", () => {
         brand: brand.publicKey,
         reward: reward.publicKey,
         tokenMint: tokenMint.publicKey,
-        authority: provider.wallet.publicKey,
+        tronicAdmin: TRONIC_ADMIN_PUBKEY,
       })
-      .signers([reward, tokenMint])
+      .signers([reward, tokenMint, TRONIC_ADMIN_KEYPAIR])
       .rpc();
   
-    // Initialize user rewards if not already done
-    await program.methods
-      .initializeUserRewards()
-      .accounts({
-        userRewards: userRewards.publicKey,
-        user: user.publicKey,
-        authority: provider.wallet.publicKey,
-      })
-      .signers([userRewards, user])
-      .rpc();
-  
+    
     // Issue the non-fungible reward
     const userTokenAccount = await anchor.utils.token.associatedAddress({
       mint: tokenMint.publicKey,
@@ -256,11 +221,10 @@ describe("Reward Tests", () => {
         reward: reward.publicKey,
         rewardInstance: rewardInstance.publicKey,
         user: user.publicKey,
-        userRewards: userRewards.publicKey,
-        authority: provider.wallet.publicKey,
+        tronicAdmin: TRONIC_ADMIN_PUBKEY,
         tokenMint: tokenMint.publicKey,
       })
-      .signers([rewardInstance, user])
+      .signers([rewardInstance, TRONIC_ADMIN_KEYPAIR])
       .rpc();
   
     // Verify the reward issuance
@@ -274,9 +238,100 @@ describe("Reward Tests", () => {
   
     const userTokenAccountInfo = await provider.connection.getTokenAccountBalance(userTokenAccount);
     expect(userTokenAccountInfo.value.uiAmount).to.equal(1);
-  
-    const updatedUserRewards = await program.account.userRewards.fetch(userRewards.publicKey);
-    expect(updatedUserRewards.rewards).to.have.lengthOf(1);
-    expect(updatedUserRewards.rewards[0].toString()).to.equal(reward.publicKey.toString());
+  });
+
+  it("Fails to create a fungible reward with non-admin signer", async () => {
+    const reward = anchor.web3.Keypair.generate();
+    const tokenMint = anchor.web3.Keypair.generate();
+    const nonAdminKeypair = anchor.web3.Keypair.generate();
+
+    // Fund the non-admin account
+    await fundAccount(program.provider.connection, nonAdminKeypair.publicKey);
+
+    try {
+      await program.methods
+        .createFungibleReward("Test Reward", "A test reward", new anchor.BN(1000000))
+        .accounts({
+          brand: brand.publicKey,
+          reward: reward.publicKey,
+          tokenMint: tokenMint.publicKey,
+          tronicAdmin: nonAdminKeypair.publicKey,
+        })
+        .signers([reward, tokenMint, nonAdminKeypair])
+        .rpc();
+
+      expect.fail("Expected an error but none was thrown");
+    } catch (error) {
+      expect(error.message).to.include("Error Code: UnauthorizedTronicAdmin");
+    }
+  });
+
+  it("Fails to create a non-fungible reward with non-admin signer", async () => {
+    const reward = anchor.web3.Keypair.generate();
+    const tokenMint = anchor.web3.Keypair.generate();
+    const nonAdminKeypair = anchor.web3.Keypair.generate();
+
+    // Fund the non-admin account
+    await fundAccount(program.provider.connection, nonAdminKeypair.publicKey);
+
+    try {
+      await program.methods
+        .createNonFungibleReward("Test NFT Reward", "A test NFT reward", "https://example.com/metadata.json")
+        .accounts({
+          brand: brand.publicKey,
+          reward: reward.publicKey,
+          tokenMint: tokenMint.publicKey,
+          tronicAdmin: nonAdminKeypair.publicKey,
+        })
+        .signers([reward, tokenMint, nonAdminKeypair])
+        .rpc();
+
+      expect.fail("Expected an error but none was thrown");
+    } catch (error) {
+      expect(error.message).to.include("Error Code: UnauthorizedTronicAdmin");
+    }
+  });
+
+  it("Fails to issue a fungible reward with non-admin signer", async () => {
+    const reward = anchor.web3.Keypair.generate();
+    const tokenMint = anchor.web3.Keypair.generate();
+    const user = anchor.web3.Keypair.generate();
+    const nonAdminKeypair = anchor.web3.Keypair.generate();
+
+    // Create the reward first (as admin)
+    const sig = await program.methods
+      .createFungibleReward("Test Reward", "A test reward", new anchor.BN(1000000))
+      .accounts({
+        brand: brand.publicKey,
+        reward: reward.publicKey,
+        tokenMint: tokenMint.publicKey,
+        tronicAdmin: TRONIC_ADMIN_PUBKEY,
+      })
+      .signers([reward, tokenMint, TRONIC_ADMIN_KEYPAIR])
+      .rpc();
+
+      console.log("sig:", sig);
+
+    // Fund the non-admin account
+    await fundAccount(program.provider.connection, nonAdminKeypair.publicKey);
+
+    // Try to issue the reward as non-admin
+    try {
+      await program.methods
+        .issueFungibleReward(new anchor.BN(100))
+        .accounts({
+          brand: brand.publicKey,
+          reward: reward.publicKey,
+          user: user.publicKey,
+          tronicAdmin: nonAdminKeypair.publicKey,
+          tokenMint: tokenMint.publicKey,
+        })
+        .signers([nonAdminKeypair])
+        .rpc();
+
+      expect.fail("Expected an error but none was thrown");
+    } catch (error) {
+      expect(error.message).to.include("Error Code: UnauthorizedTronicAdmin");
+    }
   });
 });
