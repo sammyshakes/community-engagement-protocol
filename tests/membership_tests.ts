@@ -1,7 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
-import { program, provider, brandList, initializeProgramState, initializeBrandList, createUniqueBrand, log, TOKEN_METADATA_PROGRAM_ID, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR } from './common';
+import { program, provider, brandList, initializeProgramState, initializeBrandList, createUniqueBrand, log, TOKEN_METADATA_PROGRAM_ID, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR, fundAccount } from './common';
 
 describe("Membership Tests", () => {
   before(initializeProgramState);
@@ -522,5 +522,112 @@ describe("Membership Tests", () => {
     log("Brand verification passed");
 
     log("Membership tier successfully created within brand context");
+  });
+
+  it("Fails to create membership with non-admin signer", async () => {
+    const nonAdminKeypair = anchor.web3.Keypair.generate();
+    const membershipData = anchor.web3.Keypair.generate();
+
+    // Fund the non-admin account
+    await fundAccount(program.provider.connection, nonAdminKeypair.publicKey);
+
+    try {
+      await program.methods
+        .initializeMembership(
+          new anchor.BN(Date.now()),
+          "Non-Admin Membership",
+          "NAM",
+          "https://example.com/",
+          new anchor.BN(1000),
+          true,
+          5
+        )
+        .accounts({
+          brand: brand.publicKey,
+          membershipData: membershipData.publicKey,
+          tronicAdmin: nonAdminKeypair.publicKey,
+        })
+        .signers([membershipData, nonAdminKeypair])
+        .rpc();
+
+      expect.fail("Should not be able to create membership with non-admin signer");
+    } catch (error) {
+      expect(error.message).to.include("Error Code: UnauthorizedTronicAdmin");
+      log("Correctly failed to create membership with non-admin signer");
+    }
+  });
+
+  it("Fails to mint membership with non-admin signer", async () => {
+    // First, create a valid membership with the Tronic Admin
+    const membershipData = anchor.web3.Keypair.generate();
+    await program.methods
+      .initializeMembership(
+        new anchor.BN(Date.now()),
+        "Test Membership",
+        "TEST",
+        "https://example.com/",
+        new anchor.BN(1000),
+        true,
+        5
+      )
+      .accounts({
+        brand: brand.publicKey,
+        membershipData: membershipData.publicKey,
+        tronicAdmin: TRONIC_ADMIN_PUBKEY,
+      })
+      .signers([membershipData, TRONIC_ADMIN_KEYPAIR])
+      .rpc();
+
+    // Now attempt to mint with a non-admin signer
+    const nonAdminKeypair = anchor.web3.Keypair.generate();
+    const mint = anchor.web3.Keypair.generate();
+    const recipient = anchor.web3.Keypair.generate();
+
+    // Fund the non-admin account
+    await fundAccount(program.provider.connection, nonAdminKeypair.publicKey);
+
+    const tokenAccountAddress = await anchor.utils.token.associatedAddress({
+      mint: mint.publicKey,
+      owner: recipient.publicKey
+    });
+
+    const metadataAddress = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("metadata"),
+        TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+        mint.publicKey.toBuffer(),
+      ],
+      TOKEN_METADATA_PROGRAM_ID
+    )[0];
+
+    const masterEditionAddress = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("metadata"),
+        TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+        mint.publicKey.toBuffer(),
+        Buffer.from("edition"),
+      ],
+      TOKEN_METADATA_PROGRAM_ID
+    )[0];
+
+    try {
+      await program.methods
+        .mintMembership(0) // Assuming 0 is a valid tier index
+        .accounts({
+          membershipData: membershipData.publicKey,
+          mint: mint.publicKey,
+          recipient: recipient.publicKey,
+          tronicAdmin: nonAdminKeypair.publicKey,
+          metadata: metadataAddress,
+          masterEdition: masterEditionAddress,
+        })
+        .signers([mint, nonAdminKeypair])
+        .rpc();
+
+      expect.fail("Should not be able to mint membership with non-admin signer");
+    } catch (error) {
+      expect(error.message).to.include("Error Code: UnauthorizedTronicAdmin");
+      log("Correctly failed to mint membership with non-admin signer");
+    }
   });
 });
