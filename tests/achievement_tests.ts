@@ -1,9 +1,10 @@
 // tests/achievement_tests.ts
 import { expect } from 'chai';
 import * as anchor from "@coral-xyz/anchor";
-import { program, provider, brandList, initializeProgramState, initializeBrandList, log, TOKEN_METADATA_PROGRAM_ID, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from './common';
+import { program, provider, brandList, initializeProgramState, initializeBrandList, log, TOKEN_METADATA_PROGRAM_ID, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR } from './common';
 
 describe("Achievement Tests", () => {
+  before(initializeProgramState);
   before(initializeBrandList);
 
   it("Lists achievements for a brand", async () => {
@@ -16,7 +17,6 @@ describe("Achievement Tests", () => {
       .accounts({
         brand: brand.publicKey,
         brandList: brandList.publicKey,
-        user: provider.wallet.publicKey,
       })
       .signers([brand])
       .rpc();
@@ -64,7 +64,6 @@ describe("Achievement Tests", () => {
       .accounts({
         brand: brand.publicKey,
         brandList: brandList.publicKey,
-        user: provider.wallet.publicKey,
       })
       .signers([brand])
       .rpc();
@@ -129,9 +128,9 @@ describe("Achievement Tests", () => {
       .accounts({
         brand: brand.publicKey,
         brandList: brandList.publicKey,
-        user: provider.wallet.publicKey,
+        tronicAdmin: TRONIC_ADMIN_PUBKEY,
       })
-      .signers([brand])
+      .signers([brand, TRONIC_ADMIN_KEYPAIR])
       .rpc();
     log("Brand created with publicKey:", brand.publicKey.toBase58());
   
@@ -148,9 +147,9 @@ describe("Achievement Tests", () => {
         brand: brand.publicKey,
         achievement: achievement.publicKey,
         tokenMint: tokenMint.publicKey,
-        authority: provider.wallet.publicKey,
+        tronicAdmin: TRONIC_ADMIN_PUBKEY,
       })
-      .signers([achievement, tokenMint])
+      .signers([achievement, tokenMint, TRONIC_ADMIN_KEYPAIR])
       .rpc();
     log("Fungible achievement created with publicKey:", achievement.publicKey.toBase58());
   
@@ -210,7 +209,6 @@ describe("Achievement Tests", () => {
       .accounts({
         brand: brand.publicKey,
         brandList: brandList.publicKey,
-        user: provider.wallet.publicKey,
       })
       .signers([brand])
       .rpc();
@@ -237,10 +235,6 @@ describe("Achievement Tests", () => {
           brand: brand.publicKey,
           achievement: achievement.publicKey,
           mint: mint.publicKey,
-          admin: provider.wallet.publicKey,
-          // tokenProgram: TOKEN_PROGRAM_ID,
-          // systemProgram: anchor.web3.SystemProgram.programId,
-          // rent: anchor.web3.SYSVAR_RENT_PUBKEY,
         })
         .signers([achievement, mint])
         .rpc();

@@ -1,6 +1,7 @@
 use super::state::*;
 use crate::brand::state::Brand;
 use crate::errors::CepError;
+use crate::ProgramState;
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -96,22 +97,40 @@ pub struct CreateNonFungibleAchievement<'info> {
 
     #[account(
         init,
-        payer = admin,
-        space = 8 + 32 + 100 + 200 + 200 + 4 + 8 + 8 + 1 + 32 + 8 + 200
+        payer = tronic_admin,
+        space = 8 // Discriminator
+            + 32 // Brand
+            + 50 // Name
+            + 200 // Description
+            + 200 // Criteria
+            + 4 // Points
+            + 8 // Created At
+            + 8 // Updated At
+            + 1 // Achievement Type
+            + 32 // Token Mint
+            + 8 // Token Supply
+            + 200 // Metadata URI
     )]
     pub achievement: Account<'info, Achievement>,
 
     #[account(
         init,
-        payer = admin,
+        payer = tronic_admin,
         mint::decimals = 0,
-        mint::authority = admin.key(),
-        mint::freeze_authority = admin.key(),
+        mint::authority = tronic_admin.key(),
+        mint::freeze_authority = tronic_admin.key(),
     )]
     pub mint: Account<'info, Mint>,
 
+    #[account(
+        seeds = [b"program-state"],
+        bump,
+        constraint = program_state.tronic_admin == tronic_admin.key() @ CepError::UnauthorizedTronicAdmin
+    )]
+    pub program_state: Account<'info, ProgramState>,
+
     #[account(mut)]
-    pub admin: Signer<'info>,
+    pub tronic_admin: Signer<'info>,
 
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
@@ -312,20 +331,37 @@ pub struct CreateFungibleAchievement<'info> {
     pub brand: Account<'info, Brand>,
     #[account(
         init,
-        payer = authority,
-        space = 8 + 32 + 50 + 200 + 200 + 4 + 8 + 8 + 1 + 32 + 8
+        payer = tronic_admin,
+        space = 8 // Discriminator
+            + 32 // Brand
+            + 50 // Name
+            + 200 // Description
+            + 200 // Criteria
+            + 4 // Points
+            + 8 // Created At
+            + 8 // Updated At
+            + 1 // Achievement Type
+            + 32 // Token Mint
+            + 8 // Token Supply
     )]
     pub achievement: Account<'info, Achievement>,
     #[account(
         init,
-        payer = authority,
+        payer = tronic_admin,
         mint::decimals = 0,
-        mint::authority = authority.key(),
-        mint::freeze_authority = authority.key(),
+        mint::authority = tronic_admin.key(),
+        mint::freeze_authority = tronic_admin.key(),
     )]
     pub token_mint: Account<'info, Mint>,
+
+    #[account(
+        seeds = [b"program-state"],
+        bump,
+        constraint = program_state.tronic_admin == tronic_admin.key() @ CepError::UnauthorizedTronicAdmin
+    )]
+    pub program_state: Account<'info, ProgramState>,
     #[account(mut)]
-    pub authority: Signer<'info>,
+    pub tronic_admin: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub rent: Sysvar<'info, Rent>,

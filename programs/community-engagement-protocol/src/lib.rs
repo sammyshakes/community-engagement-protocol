@@ -28,6 +28,10 @@ pub mod community_engagement_protocol {
         );
         program_state.tronic_admin = ctx.accounts.payer.key();
         program_state.version = 1;
+        msg!(
+            "Program initialized by Tronic Admin: {}",
+            program_state.tronic_admin
+        );
         Ok(())
     }
 

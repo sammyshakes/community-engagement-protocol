@@ -28,37 +28,31 @@ describe("Brand Tests", () => {
       program.programId
     );
   
-    console.log("Program State PDA:", programStatePda.toBase58());
-    console.log("Tronic Admin Public Key:", TRONIC_ADMIN_PUBKEY.toBase58());
+    log("Program State PDA:", programStatePda.toBase58());
+    log("Tronic Admin Public Key:", TRONIC_ADMIN_PUBKEY.toBase58());
   
-    try {
-      const tx = await program.methods
-        .createBrand(name, description, null, null, null, [])
-        .accounts({
-          brand: brand.publicKey,
-          brandList: brandList.publicKey,
-          tronicAdmin: TRONIC_ADMIN_PUBKEY,
-          // Commenting out programState to see if it still works
-          // programState: programStatePda,
-        })
-        .signers([brand, TRONIC_ADMIN_KEYPAIR])
-        .rpc();
-  
-      console.log("Transaction signature:", tx);
-  
-      // Fetch the logs from the transaction
-      const txInfo = await provider.connection.getTransaction(tx, { commitment: 'confirmed' });
-      console.log("Transaction logs:", txInfo?.meta?.logMessages);
-  
-      const brandAccount = await program.account.brand.fetch(brand.publicKey);
-      console.log("Created Brand Account:", brandAccount);
-  
-      expect(brandAccount.name).to.equal(name);
-      expect(brandAccount.description).to.equal(description);
-    } catch (error) {
-      console.error("Error creating brand:", error);
-      throw error;
-    }
+    const tx = await program.methods
+      .createBrand(name, description, null, null, null, [])
+      .accounts({
+        brand: brand.publicKey,
+        brandList: brandList.publicKey,
+        tronicAdmin: TRONIC_ADMIN_PUBKEY,
+      })
+      .signers([brand, TRONIC_ADMIN_KEYPAIR])
+      .rpc();
+
+    log("Transaction signature:", tx);
+
+    // Fetch the logs from the transaction
+    const txInfo = await provider.connection.getTransaction(tx, { commitment: 'confirmed' });
+    log("Transaction logs:", txInfo?.meta?.logMessages);
+
+    const brandAccount = await program.account.brand.fetch(brand.publicKey);
+    log("Created Brand Account:", brandAccount);
+
+    expect(brandAccount.name).to.equal(name);
+    expect(brandAccount.description).to.equal(description);
+    expect(brandAccount.creationDate.toNumber()).to.be.greaterThan(0);
   });
 
   it("Creates a brand with enhanced metadata", async () => {
@@ -206,9 +200,9 @@ describe("Brand Tests", () => {
       program.programId
     );
 
-    console.log("Program State PDA:", programStatePda.toBase58());
-    console.log("Non-admin Public Key:", nonAdminKeypair.publicKey.toBase58());
-    console.log("Actual Tronic Admin Public Key:", TRONIC_ADMIN_PUBKEY.toBase58());
+    log("Program State PDA:", programStatePda.toBase58());
+    log("Non-admin Public Key:", nonAdminKeypair.publicKey.toBase58());
+    log("Actual Tronic Admin Public Key:", TRONIC_ADMIN_PUBKEY.toBase58());
 
     // Fund the non-admin account
     const connection = program.provider.connection;
@@ -221,27 +215,25 @@ describe("Brand Tests", () => {
         .accounts({
           brand: brand.publicKey,
           brandList: brandList.publicKey,
-          programState: programStatePda,
           tronicAdmin: nonAdminKeypair.publicKey,
-          systemProgram: anchor.web3.SystemProgram.programId,
         })
         .signers([brand, nonAdminKeypair])
         .rpc();
 
-      console.log("Transaction signature (unexpected success):", tx);
+      log("Transaction signature (unexpected success):", tx);
       expect.fail("Expected an error but none was thrown");
     } catch (error) {
-      console.log("Error caught:", error.message);
+      log("Error caught:", error.message);
       
       // Check if the error is due to unauthorized access, not insufficient funds
       if (error.message.includes("custom program error: 0x1")) {
         // Fetch the logs to see if our custom error message is there
         const logs = error?.logs || [];
-        console.log("Transaction logs:", logs);
+        log("Transaction logs:", logs);
         
         const unauthorizedLog = logs.find(log => log.includes("Unauthorized: Signer is not the Tronic Admin"));
         if (unauthorizedLog) {
-          console.log("Found unauthorized log:", unauthorizedLog);
+          log("Found unauthorized log:", unauthorizedLog);
         } else {
           expect.fail("Expected to find 'Unauthorized: Signer is not the Tronic Admin' in logs, but it was not present");
         }
@@ -249,5 +241,51 @@ describe("Brand Tests", () => {
         expect(error.message).to.include("Error Code: UnauthorizedTronicAdmin");
       }
     }
+  });
+
+  it("Fails to update a brand with non-admin signer", async () => {
+    // First, create a brand with the Tronic Admin
+    const brand = anchor.web3.Keypair.generate();
+    const [programStatePda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("program-state")],
+      program.programId
+    );
+  
+    await program.methods
+      .createBrand("Original Brand", "Original description", null, null, null, [])
+      .accounts({
+        brand: brand.publicKey,
+        brandList: brandList.publicKey,
+        tronicAdmin: TRONIC_ADMIN_PUBKEY,
+      })
+      .signers([brand, TRONIC_ADMIN_KEYPAIR])
+      .rpc();
+  
+    // Now try to update the brand with a non-admin signer
+    const nonAdminKeypair = anchor.web3.Keypair.generate();
+    
+    // Fund the non-admin account
+    await fundAccount(program.provider.connection, nonAdminKeypair.publicKey);
+  
+    try {
+      await program.methods
+        .updateBrand("Updated Brand", "Updated description")
+        .accounts({
+          brand: brand.publicKey,
+          tronicAdmin: nonAdminKeypair.publicKey,
+        })
+        .signers([nonAdminKeypair])
+        .rpc();
+  
+      expect.fail("Expected an error but none was thrown");
+    } catch (error) {
+      log("Error caught:", error.message);
+      expect(error.message).to.include("Error Code: UnauthorizedTronicAdmin");
+    }
+  
+    // Verify the brand wasn't updated
+    const brandAccount = await program.account.brand.fetch(brand.publicKey);
+    expect(brandAccount.name).to.equal("Original Brand");
+    expect(brandAccount.description).to.equal("Original description");
   });
 });

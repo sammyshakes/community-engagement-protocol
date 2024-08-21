@@ -5,6 +5,10 @@ use anchor_lang::prelude::*;
 pub fn initialize_brand_list(ctx: Context<InitializeBrandList>) -> Result<()> {
     let brand_list = &mut ctx.accounts.brand_list;
     brand_list.brands = Vec::with_capacity(200);
+    msg!(
+        "Brand list initialized by Tronic Admin: {}",
+        ctx.accounts.tronic_admin.key()
+    );
     Ok(())
 }
 

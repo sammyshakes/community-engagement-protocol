@@ -9,6 +9,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
 } from "@solana/spl-token";
+import { Connection, PublicKey } from '@solana/web3.js';
 
 export const DEBUG = false;
 
@@ -38,7 +39,7 @@ export let brandList: anchor.web3.Keypair;
 export async function fundAccount(connection: Connection, address: PublicKey, amount: number = 1000000000) {
   const airdropSignature = await connection.requestAirdrop(address, amount);
   await connection.confirmTransaction(airdropSignature);
-  console.log(`Airdropped ${amount / anchor.web3.LAMPORTS_PER_SOL} SOL to ${address.toBase58()}`);
+  log(`Airdropped ${amount / anchor.web3.LAMPORTS_PER_SOL} SOL to ${address.toBase58()}`);
 }
 
 export async function initializeProgramState() {
@@ -48,35 +49,58 @@ export async function initializeProgramState() {
   );
 
   try {
-    await program.methods
-      .initializeProgram()
-      .accounts({
-        programState: programStatePda,
-        payer: TRONIC_ADMIN_KEYPAIR.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      })
-      .signers([TRONIC_ADMIN_KEYPAIR])
-      .rpc();
-
-    console.log("Program state initialized with Tronic Admin:", TRONIC_ADMIN_PUBKEY.toBase58());
+    // Try to fetch the program state account
+    const account = await program.account.programState.fetch(programStatePda);
+    log("Program state already initialized:", account);
   } catch (error) {
-    console.error("Failed to initialize program state:", error);
-    throw error;
+    log("Error fetching program state, attempting to initialize:", error);
+    
+    try {
+      const tx = await program.methods
+        .initializeProgram()
+        .accounts({
+          // programState: programStatePda,
+          payer: TRONIC_ADMIN_KEYPAIR.publicKey,
+          // systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([TRONIC_ADMIN_KEYPAIR])
+        .rpc();
+
+      log("Program state initialized with Tronic Admin:", TRONIC_ADMIN_PUBKEY.toBase58());
+      log("Transaction signature:", tx);
+      
+      // Fetch the account again to confirm it's initialized
+      const account = await program.account.programState.fetch(programStatePda);
+      log("Initialized program state account:", account);
+    } catch (initError) {
+      error("Failed to initialize program state:", initError);
+      if (initError instanceof anchor.AnchorError) {
+        error("Error code:", initError.error.errorCode.number);
+        error("Error message:", initError.error.errorMessage);
+      }
+      throw initError;
+    }
   }
 }
 
 export async function initializeBrandList() {
+  const [programStatePda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("program-state")],
+    program.programId
+  );
+
   brandList = anchor.web3.Keypair.generate();
   
   await program.methods
     .initializeBrandList()
     .accounts({
       brandList: brandList.publicKey,
+      tronicAdmin: TRONIC_ADMIN_PUBKEY,
     })
-    .signers([brandList])
+    .signers([brandList, TRONIC_ADMIN_KEYPAIR])
     .rpc();
 
-  log("Initialized BrandList with publicKey:", brandList.publicKey.toBase58());
+  console.log("Initialized BrandList with publicKey:", brandList.publicKey.toBase58());
 }
 
 export async function createUniqueBrand() {
@@ -99,7 +123,6 @@ export async function createUniqueBrand() {
     .accounts({
       brand: brand.publicKey,
       brandList: brandList.publicKey,
-      programState: programStatePda,
       tronicAdmin: TRONIC_ADMIN_PUBKEY,
     })
     .signers([brand, TRONIC_ADMIN_KEYPAIR])
