@@ -1,5 +1,5 @@
 use super::state::*;
-use crate::errors::CepError;
+use crate::{errors::CepError, ProgramState};
 use anchor_lang::prelude::*;
 
 pub fn initialize_brand_list(ctx: Context<InitializeBrandList>) -> Result<()> {
@@ -18,8 +18,14 @@ pub fn create_brand(
     tags: Vec<String>,
 ) -> Result<()> {
     let brand = &mut ctx.accounts.brand;
-    let user = &ctx.accounts.user;
     let clock = Clock::get()?;
+    let program_state = &ctx.accounts.program_state;
+
+    msg!(
+        "Creating brand with Tronic Admin: {}",
+        program_state.tronic_admin
+    );
+    msg!("Signer public key: {}", ctx.accounts.tronic_admin.key());
 
     if name.chars().count() > 50 {
         return Err(CepError::NameTooLong.into());
@@ -35,7 +41,6 @@ pub fn create_brand(
 
     brand.name = name;
     brand.description = description;
-    brand.admins = vec![user.key()];
     brand.achievements = Vec::new();
     brand.memberships = Vec::new();
     brand.creation_date = clock.unix_timestamp;
@@ -49,13 +54,13 @@ pub fn create_brand(
 
     ctx.accounts.brand_list.add(brand.key());
 
-    msg!("Brand Hub '{}' created", brand.name);
+    msg!("Brand '{}' created", brand.name);
     Ok(())
 }
 
 pub fn update_brand(ctx: Context<UpdateBrand>, name: String, description: String) -> Result<()> {
     let brand = &mut ctx.accounts.brand;
-    let user = &ctx.accounts.user;
+    let clock = Clock::get()?;
 
     if name.chars().count() > 50 {
         return Err(CepError::NameTooLong.into());
@@ -65,14 +70,11 @@ pub fn update_brand(ctx: Context<UpdateBrand>, name: String, description: String
         return Err(CepError::DescriptionTooLong.into());
     }
 
-    if !brand.admins.contains(&user.key()) {
-        return Err(CepError::Unauthorized.into());
-    }
-
     brand.name = name;
     brand.description = description;
+    brand.last_updated = clock.unix_timestamp;
 
-    msg!("Brand Hub '{}' updated", brand.name);
+    msg!("Brand '{}' updated", brand.name);
     Ok(())
 }
 
@@ -81,7 +83,6 @@ pub fn get_brand_info(ctx: Context<GetBrandInfo>) -> Result<BrandInfo> {
     Ok(BrandInfo {
         name: brand.name.clone(),
         description: brand.description.clone(),
-        admins: brand.admins.clone(),
         achievements: brand.achievements.clone(),
     })
 }
@@ -95,54 +96,22 @@ pub fn list_brand_achievements(ctx: Context<ListBrandAchievements>) -> Result<Ve
     Ok(brand.achievements.clone())
 }
 
-pub fn add_admin(ctx: Context<AddAdmin>, new_admin: Pubkey) -> Result<()> {
-    let brand = &mut ctx.accounts.brand;
-    let user = &ctx.accounts.user;
-
-    if !brand.admins.contains(&user.key()) {
-        return Err(CepError::Unauthorized.into());
-    }
-
-    if brand.admins.contains(&new_admin) {
-        return Err(CepError::AdminAlreadyExists.into());
-    }
-
-    brand.admins.push(new_admin);
-    msg!("New admin added to Brand Hub '{}'", brand.name);
-    Ok(())
-}
-
-pub fn remove_admin(ctx: Context<RemoveAdmin>, admin_to_remove: Pubkey) -> Result<()> {
-    let brand = &mut ctx.accounts.brand;
-    let user = &ctx.accounts.user;
-
-    if !brand.admins.contains(&user.key()) {
-        return Err(CepError::Unauthorized.into());
-    }
-
-    if !brand.admins.contains(&admin_to_remove) {
-        return Err(CepError::AdminNotFound.into());
-    }
-
-    if brand.admins.len() == 1 {
-        return Err(CepError::CannotRemoveLastAdmin.into());
-    }
-
-    brand.admins.retain(|&x| x != admin_to_remove);
-    msg!("Admin removed from Brand Hub '{}'", brand.name);
-    Ok(())
-}
-
 #[derive(Accounts)]
 pub struct InitializeBrandList<'info> {
     #[account(
         init,
-        payer = user,
+        payer = tronic_admin,
         space = 8 + 4 + 200 * 32 // Discriminator + Vec length + 200 Pubkeys
     )]
     pub brand_list: Account<'info, BrandList>,
+    #[account(
+        seeds = [b"program-state"],
+        bump,
+        constraint = program_state.tronic_admin == tronic_admin.key() @ CepError::UnauthorizedTronicAdmin
+    )]
+    pub program_state: Account<'info, ProgramState>,
     #[account(mut)]
-    pub user: Signer<'info>,
+    pub tronic_admin: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -150,11 +119,10 @@ pub struct InitializeBrandList<'info> {
 pub struct CreateBrand<'info> {
     #[account(
         init,
-        payer = user,
+        payer = tronic_admin,
         space = 8 + // discriminator
                 50 + // name (String)
                 200 + // description (String)
-                32 + (4 + 32 * 10) + // admins (Vec<Pubkey>)
                 32 + (4 + 32 * 50) + // achievements (Vec<Pubkey>)
                 8 + // creation_date (i64)
                 8 + // last_updated (i64)
@@ -166,8 +134,14 @@ pub struct CreateBrand<'info> {
     pub brand: Account<'info, Brand>,
     #[account(mut)]
     pub brand_list: Account<'info, BrandList>,
+    #[account(
+        seeds = [b"program-state"],
+        bump,
+        constraint = program_state.tronic_admin == tronic_admin.key() @ CepError::UnauthorizedTronicAdmin
+    )]
+    pub program_state: Account<'info, ProgramState>,
     #[account(mut)]
-    pub user: Signer<'info>,
+    pub tronic_admin: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -175,7 +149,13 @@ pub struct CreateBrand<'info> {
 pub struct UpdateBrand<'info> {
     #[account(mut)]
     pub brand: Account<'info, Brand>,
-    pub user: Signer<'info>,
+    #[account(
+        seeds = [b"program-state"],
+        bump,
+        constraint = program_state.tronic_admin == tronic_admin.key() @ CepError::UnauthorizedTronicAdmin
+    )]
+    pub program_state: Account<'info, ProgramState>,
+    pub tronic_admin: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -191,18 +171,4 @@ pub struct ListAllBrands<'info> {
 #[derive(Accounts)]
 pub struct ListBrandAchievements<'info> {
     pub brand: Account<'info, Brand>,
-}
-
-#[derive(Accounts)]
-pub struct AddAdmin<'info> {
-    #[account(mut)]
-    pub brand: Account<'info, Brand>,
-    pub user: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct RemoveAdmin<'info> {
-    #[account(mut)]
-    pub brand: Account<'info, Brand>,
-    pub user: Signer<'info>,
 }

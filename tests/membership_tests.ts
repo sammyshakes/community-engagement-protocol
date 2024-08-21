@@ -1,7 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
-import { program, provider, brandList, initializeBrandList, createUniqueBrand, log, TOKEN_METADATA_PROGRAM_ID } from './common';
+import { program, provider, brandList, initializeProgramState, initializeBrandList, createUniqueBrand, log, TOKEN_METADATA_PROGRAM_ID } from './common';
 
 describe("Membership Tests", () => {
   before(initializeBrandList);
@@ -27,7 +27,6 @@ describe("Membership Tests", () => {
       .accounts({
         brand: brand.publicKey,
         brandList: brandList.publicKey,
-        user: admin.publicKey,
       })
       .signers([brand])
       .rpc();
@@ -216,7 +215,6 @@ describe("Membership Tests", () => {
       .accounts({
         brand: brand.publicKey,
         brandList: brandList.publicKey,
-        user: admin.publicKey,
       })
       .signers([brand])
       .rpc();

@@ -1,64 +1,64 @@
-// tests/group_hub_tests.ts
+// tests/brand_tests.ts
 import { expect } from 'chai';
 import * as anchor from "@coral-xyz/anchor";
-import { program, provider, brandList, initializeBrandList, log } from './common';
+import { 
+  program, 
+  provider, 
+  brandList, 
+  initializeProgramState,
+  initializeBrandList,
+  fundAccount,
+  log, 
+  TRONIC_ADMIN_KEYPAIR, 
+  TRONIC_ADMIN_PUBKEY 
+} from './common';
 
 describe("Brand Tests", () => {
+  before(initializeProgramState);
   before(initializeBrandList);
+  fundAccount(program.provider.connection, TRONIC_ADMIN_PUBKEY)
 
   it("Creates a brand", async () => {
     const brand = anchor.web3.Keypair.generate();
     const name = "Test Brand";
     const description = "A test brand for our community engagement protocol";
-
-    await program.methods
-      .createBrand(name, description, null, null, null, [])
-      .accounts({
-        brand: brand.publicKey,
-        brandList: brandList.publicKey,
-        user: provider.wallet.publicKey,
-      })
-      .signers([brand])
-      .rpc();
-
-    log("Created Brand with publicKey:", brand.publicKey.toBase58());
-
-    const brandAccount = await program.account.brand.fetch(brand.publicKey);
-    log("Brand Account:", brandAccount);
-    expect(brandAccount.name).to.equal(name);
-    expect(brandAccount.description).to.equal(description);
-    expect(brandAccount.admins[0].toString()).to.equal(provider.wallet.publicKey.toString());
-  });
-
-  it("Creates a brand", async () => {
-    const brand = anchor.web3.Keypair.generate();
-    const name = "Test Brand";
-    const description = "A test brand for our community engagement protocol";
-
-    await program.methods
-      .createBrand(
-        name, 
-        description,
-        null,  // website
-        null,  // social_media
-        null,  // category
-        []     // tags
-      )
-      .accounts({
-        brand: brand.publicKey,
-        brandList: brandList.publicKey,
-        user: provider.wallet.publicKey,
-      })
-      .signers([brand])
-      .rpc();
-
-    log("Created Brand with publicKey:", brand.publicKey.toBase58());
-
-    const brandAccount = await program.account.brand.fetch(brand.publicKey);
-    log("Brand Account:", brandAccount);
-    expect(brandAccount.name).to.equal(name);
-    expect(brandAccount.description).to.equal(description);
-    expect(brandAccount.admins[0].toString()).to.equal(provider.wallet.publicKey.toString());
+  
+    const [programStatePda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("program-state")],
+      program.programId
+    );
+  
+    console.log("Program State PDA:", programStatePda.toBase58());
+    console.log("Tronic Admin Public Key:", TRONIC_ADMIN_PUBKEY.toBase58());
+  
+    try {
+      const tx = await program.methods
+        .createBrand(name, description, null, null, null, [])
+        .accounts({
+          brand: brand.publicKey,
+          brandList: brandList.publicKey,
+          tronicAdmin: TRONIC_ADMIN_PUBKEY,
+          // Commenting out programState to see if it still works
+          // programState: programStatePda,
+        })
+        .signers([brand, TRONIC_ADMIN_KEYPAIR])
+        .rpc();
+  
+      console.log("Transaction signature:", tx);
+  
+      // Fetch the logs from the transaction
+      const txInfo = await provider.connection.getTransaction(tx, { commitment: 'confirmed' });
+      console.log("Transaction logs:", txInfo?.meta?.logMessages);
+  
+      const brandAccount = await program.account.brand.fetch(brand.publicKey);
+      console.log("Created Brand Account:", brandAccount);
+  
+      expect(brandAccount.name).to.equal(name);
+      expect(brandAccount.description).to.equal(description);
+    } catch (error) {
+      console.error("Error creating brand:", error);
+      throw error;
+    }
   });
 
   it("Creates a brand with enhanced metadata", async () => {
@@ -75,9 +75,8 @@ describe("Brand Tests", () => {
       .accounts({
         brand: brand.publicKey,
         brandList: brandList.publicKey,
-        user: provider.wallet.publicKey,
       })
-      .signers([brand])
+      .signers([brand, TRONIC_ADMIN_KEYPAIR])
       .rpc();
 
     log("Created Enhanced Brand with publicKey:", brand.publicKey.toBase58());
@@ -87,7 +86,6 @@ describe("Brand Tests", () => {
     
     expect(brandAccount.name).to.equal(name);
     expect(brandAccount.description).to.equal(description);
-    expect(brandAccount.admins[0].toString()).to.equal(provider.wallet.publicKey.toString());
     expect(brandAccount.metadata.website).to.equal(website);
     expect(brandAccount.metadata.socialMedia).to.equal(socialMedia);
     expect(brandAccount.metadata.category).to.equal(category);
@@ -108,9 +106,8 @@ describe("Brand Tests", () => {
       .accounts({
         brand: brand.publicKey,
         brandList: brandList.publicKey,
-        user: provider.wallet.publicKey,
       })
-      .signers([brand])
+      .signers([brand, TRONIC_ADMIN_KEYPAIR])
       .rpc();
   
     log("Created Brand for update test with publicKey:", brand.publicKey.toBase58());
@@ -122,8 +119,8 @@ describe("Brand Tests", () => {
       .updateBrand(newName, newDescription)
       .accounts({
         brand: brand.publicKey,
-        user: provider.wallet.publicKey,
       })
+      .signers([TRONIC_ADMIN_KEYPAIR])
       .rpc();
   
     log("Updated Brand with publicKey:", brand.publicKey.toBase58());
@@ -144,9 +141,8 @@ describe("Brand Tests", () => {
       .accounts({
         brand: brand.publicKey,
         brandList: brandList.publicKey,
-        user: provider.wallet.publicKey,
       })
-      .signers([brand])
+      .signers([brand, TRONIC_ADMIN_KEYPAIR])
       .rpc();
 
     log("Created Brand for get info test with publicKey:", brand.publicKey.toBase58());
@@ -156,8 +152,6 @@ describe("Brand Tests", () => {
 
     expect(brandInfo.name).to.equal(name);
     expect(brandInfo.description).to.equal(description);
-    expect(brandInfo.admins).to.have.lengthOf(1);
-    expect(brandInfo.admins[0].toString()).to.equal(provider.wallet.publicKey.toString());
   });
 
   it("Lists all brands", async () => {
@@ -177,9 +171,8 @@ describe("Brand Tests", () => {
         .accounts({
           brand: brand.publicKey,
           brandList: brandList.publicKey,
-          user: provider.wallet.publicKey,
         })
-        .signers([brand])
+        .signers([brand, TRONIC_ADMIN_KEYPAIR])
         .rpc();
 
       log(`Created Brand ${i+1} with publicKey:`, brand.publicKey.toBase58());
@@ -199,83 +192,62 @@ describe("Brand Tests", () => {
     });
   });
 
-  it("Adds an admin to a brand", async () => {
+  it("Fails to create a brand with non-admin signer", async () => {
     const brand = anchor.web3.Keypair.generate();
     const name = "Test Brand";
     const description = "A test brand for our community engagement protocol";
+    const nonAdminKeypair = anchor.web3.Keypair.generate();
 
-    await program.methods
-      .createBrand(name, description, null, null, null, [])
-      .accounts({
-        brand: brand.publicKey,
-        brandList: brandList.publicKey,
-        user: provider.wallet.publicKey,
-      })
-      .signers([brand])
-      .rpc();
+    // Fund the non-admin account
+    await fundAccount(program.provider.connection, nonAdminKeypair.publicKey);
 
-    log("Created Brand for add admin test with publicKey:", brand.publicKey.toBase58());
+    const [programStatePda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("program-state")],
+      program.programId
+    );
 
-    const newAdmin = anchor.web3.Keypair.generate();
+    console.log("Program State PDA:", programStatePda.toBase58());
+    console.log("Non-admin Public Key:", nonAdminKeypair.publicKey.toBase58());
+    console.log("Actual Tronic Admin Public Key:", TRONIC_ADMIN_PUBKEY.toBase58());
 
-    await program.methods
-      .addAdmin(newAdmin.publicKey)
-      .accounts({
-        brand: brand.publicKey,
-        user: provider.wallet.publicKey,
-      })
-      .rpc();
+    // Fund the non-admin account
+    const connection = program.provider.connection;
+    const airdropSignature = await connection.requestAirdrop(nonAdminKeypair.publicKey, 1000000000);
+    await connection.confirmTransaction(airdropSignature);
 
-    log("Added new admin with publicKey:", newAdmin.publicKey.toBase58());
+    try {
+      const tx = await program.methods
+        .createBrand(name, description, null, null, null, [])
+        .accounts({
+          brand: brand.publicKey,
+          brandList: brandList.publicKey,
+          programState: programStatePda,
+          tronicAdmin: nonAdminKeypair.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([brand, nonAdminKeypair])
+        .rpc();
 
-    const updatedBrand = await program.account.brand.fetch(brand.publicKey);
-    log("Updated Brand Account after adding admin:", updatedBrand);
-    expect(updatedBrand.admins).to.have.lengthOf(2);
-    expect(updatedBrand.admins[1].toString()).to.equal(newAdmin.publicKey.toString());
-  });
-
-  it("Removes an admin from a brand", async () => {
-    const brand = anchor.web3.Keypair.generate();
-    const name = "Test Brand";
-    const description = "A test brand for our community engagement protocol";
-
-    await program.methods
-      .createBrand(name, description, null, null, null, [])
-      .accounts({
-        brand: brand.publicKey,
-        brandList: brandList.publicKey,
-        user: provider.wallet.publicKey,
-      })
-      .signers([brand])
-      .rpc();
-
-    log("Created Brand for remove admin test with publicKey:", brand.publicKey.toBase58());
-
-    const newAdmin = anchor.web3.Keypair.generate();
-
-    await program.methods
-      .addAdmin(newAdmin.publicKey)
-      .accounts({
-        brand: brand.publicKey,
-        user: provider.wallet.publicKey,
-      })
-      .rpc();
-
-    log("Added new admin with publicKey:", newAdmin.publicKey.toBase58());
-
-    await program.methods
-      .removeAdmin(newAdmin.publicKey)
-      .accounts({
-        brand: brand.publicKey,
-        user: provider.wallet.publicKey,
-      })
-      .rpc();
-
-    log("Removed admin with publicKey:", newAdmin.publicKey.toBase58());
-
-    const updatedBrand = await program.account.brand.fetch(brand.publicKey);
-    log("Updated Brand Account after removing admin:", updatedBrand);
-    expect(updatedBrand.admins).to.have.lengthOf(1);
-    expect(updatedBrand.admins[0].toString()).to.equal(provider.wallet.publicKey.toString());
+      console.log("Transaction signature (unexpected success):", tx);
+      expect.fail("Expected an error but none was thrown");
+    } catch (error) {
+      console.log("Error caught:", error.message);
+      
+      // Check if the error is due to unauthorized access, not insufficient funds
+      if (error.message.includes("custom program error: 0x1")) {
+        // Fetch the logs to see if our custom error message is there
+        const logs = error?.logs || [];
+        console.log("Transaction logs:", logs);
+        
+        const unauthorizedLog = logs.find(log => log.includes("Unauthorized: Signer is not the Tronic Admin"));
+        if (unauthorizedLog) {
+          console.log("Found unauthorized log:", unauthorizedLog);
+        } else {
+          expect.fail("Expected to find 'Unauthorized: Signer is not the Tronic Admin' in logs, but it was not present");
+        }
+      } else {
+        expect(error.message).to.include("Error Code: UnauthorizedTronicAdmin");
+      }
+    }
   });
 });

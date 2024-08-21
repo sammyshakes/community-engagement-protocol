@@ -1,4 +1,6 @@
 // tests/common.ts
+import * as fs from 'fs';
+import * as path from 'path';
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { CommunityEngagementProtocol } from "../target/types/community_engagement_protocol";
@@ -8,13 +10,21 @@ import {
   getAssociatedTokenAddress,
 } from "@solana/spl-token";
 
-export const DEBUG = true;
+export const DEBUG = false;
 
 export function log(...args: any[]) {
   if (DEBUG) {
     console.log(...args);
   }
 }
+
+// Load the admin keypair from the deploy-keypair.json file
+const rawdata = fs.readFileSync(path.join(__dirname, '../deploy-keypair.json'), 'utf-8');
+const keypairBuffer = Buffer.from(JSON.parse(rawdata));
+export const TRONIC_ADMIN_KEYPAIR = anchor.web3.Keypair.fromSecretKey(keypairBuffer);
+
+// You can also export the public key for convenience
+export const TRONIC_ADMIN_PUBKEY = TRONIC_ADMIN_KEYPAIR.publicKey;
 
 export const TOKEN_METADATA_PROGRAM_ID = new anchor.web3.PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
 
@@ -25,6 +35,36 @@ export const program = anchor.workspace.CommunityEngagementProtocol as Program<C
 
 export let brandList: anchor.web3.Keypair;
 
+export async function fundAccount(connection: Connection, address: PublicKey, amount: number = 1000000000) {
+  const airdropSignature = await connection.requestAirdrop(address, amount);
+  await connection.confirmTransaction(airdropSignature);
+  console.log(`Airdropped ${amount / anchor.web3.LAMPORTS_PER_SOL} SOL to ${address.toBase58()}`);
+}
+
+export async function initializeProgramState() {
+  const [programStatePda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("program-state")],
+    program.programId
+  );
+
+  try {
+    await program.methods
+      .initializeProgram()
+      .accounts({
+        programState: programStatePda,
+        payer: TRONIC_ADMIN_KEYPAIR.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([TRONIC_ADMIN_KEYPAIR])
+      .rpc();
+
+    console.log("Program state initialized with Tronic Admin:", TRONIC_ADMIN_PUBKEY.toBase58());
+  } catch (error) {
+    console.error("Failed to initialize program state:", error);
+    throw error;
+  }
+}
+
 export async function initializeBrandList() {
   brandList = anchor.web3.Keypair.generate();
   
@@ -32,7 +72,6 @@ export async function initializeBrandList() {
     .initializeBrandList()
     .accounts({
       brandList: brandList.publicKey,
-      user: provider.wallet.publicKey,
     })
     .signers([brandList])
     .rpc();
@@ -42,6 +81,12 @@ export async function initializeBrandList() {
 
 export async function createUniqueBrand() {
   const brand = anchor.web3.Keypair.generate();
+
+  const [programStatePda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("program-state")],
+    program.programId
+  );
+
   await program.methods
     .createBrand(
       `Test Brand ${Date.now()}`,
@@ -54,9 +99,10 @@ export async function createUniqueBrand() {
     .accounts({
       brand: brand.publicKey,
       brandList: brandList.publicKey,
-      user: provider.wallet.publicKey,
+      programState: programStatePda,
+      tronicAdmin: TRONIC_ADMIN_PUBKEY,
     })
-    .signers([brand])
+    .signers([brand, TRONIC_ADMIN_KEYPAIR])
     .rpc();
   
   log("Created unique Brand with publicKey:", brand.publicKey.toBase58());

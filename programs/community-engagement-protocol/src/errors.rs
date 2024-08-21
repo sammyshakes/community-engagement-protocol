@@ -12,11 +12,11 @@ pub enum CepError {
     UriTooLong,
     #[msg("You are not authorized to perform this action")]
     Unauthorized,
-    #[msg("This admin already exists for the group hub")]
+    #[msg("This admin already exists for the brand")]
     AdminAlreadyExists,
-    #[msg("Admin not found in the group hub")]
+    #[msg("Admin not found in the brand")]
     AdminNotFound,
-    #[msg("Cannot remove the last admin from the group hub")]
+    #[msg("Cannot remove the last admin from the brand")]
     CannotRemoveLastAdmin,
     #[msg("Achievement not found")]
     AchievementNotFound,
@@ -29,4 +29,10 @@ pub enum CepError {
     InvalidRewardType,
     #[msg("Insufficient reward supply")]
     InsufficientRewardSupply,
+    #[msg("Unauthorized: only Tronic Admin can perform this action")]
+    UnauthorizedTronicAdmin,
+    #[msg("Program has already been initialized")]
+    AlreadyInitialized,
+    #[msg("Invalid initial admin")]
+    InvalidInitialAdmin,
 }

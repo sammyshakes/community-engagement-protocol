@@ -16,9 +16,22 @@ declare_id!("7FQ74JMt2Eeca2RD2aLVBv4No8e9PUt8SHfGsUzKhqje");
 
 #[program]
 pub mod community_engagement_protocol {
+    use errors::CepError;
+
     use super::*;
 
-    // Brand Hub Instructions
+    pub fn initialize_program(ctx: Context<InitializeProgram>) -> Result<()> {
+        let program_state = &mut ctx.accounts.program_state;
+        require!(
+            program_state.tronic_admin == Pubkey::default(),
+            CepError::AlreadyInitialized
+        );
+        program_state.tronic_admin = ctx.accounts.payer.key();
+        program_state.version = 1;
+        Ok(())
+    }
+
+    // Brand Instructions
     pub fn initialize_brand_list(ctx: Context<InitializeBrandList>) -> Result<()> {
         brand::instructions::initialize_brand_list(ctx)
     }
@@ -57,14 +70,6 @@ pub mod community_engagement_protocol {
 
     pub fn list_all_brands(ctx: Context<ListAllBrands>) -> Result<Vec<Pubkey>> {
         brand::instructions::list_all_brands(ctx)
-    }
-
-    pub fn add_admin(ctx: Context<AddAdmin>, new_admin: Pubkey) -> Result<()> {
-        brand::instructions::add_admin(ctx, new_admin)
-    }
-
-    pub fn remove_admin(ctx: Context<RemoveAdmin>, admin_to_remove: Pubkey) -> Result<()> {
-        brand::instructions::remove_admin(ctx, admin_to_remove)
     }
 
     // Membership Instructions
@@ -197,5 +202,44 @@ pub mod community_engagement_protocol {
 
     pub fn issue_non_fungible_reward(ctx: Context<IssueNonFungibleReward>) -> Result<()> {
         reward::instructions::issue_non_fungible_reward(ctx)
+    }
+
+    pub fn update_tronic_admin(ctx: Context<UpdateTronicAdmin>, new_admin: Pubkey) -> Result<()> {
+        let program_state = &mut ctx.accounts.program_state;
+        program_state.tronic_admin = new_admin;
+        Ok(())
+    }
+
+    #[derive(Accounts)]
+    pub struct UpdateTronicAdmin<'info> {
+        #[account(
+            mut,
+            seeds = [b"program-state"],
+            bump,
+            constraint = program_state.tronic_admin == current_admin.key() @ CepError::UnauthorizedTronicAdmin
+        )]
+        pub program_state: Account<'info, ProgramState>,
+        pub current_admin: Signer<'info>,
+    }
+
+    #[derive(Accounts)]
+    pub struct InitializeProgram<'info> {
+        #[account(
+        init,
+        payer = payer,
+        space = 8 + 32 + 1, // discriminator + pubkey + version
+        seeds = [b"program-state"],
+        bump
+    )]
+        pub program_state: Account<'info, ProgramState>,
+        #[account(mut)]
+        pub payer: Signer<'info>,
+        pub system_program: Program<'info, System>,
+    }
+
+    #[account]
+    pub struct ProgramState {
+        pub tronic_admin: Pubkey,
+        pub version: u8,
     }
 }

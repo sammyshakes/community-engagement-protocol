@@ -1,7 +1,7 @@
 // tests/achievement_tests.ts
 import { expect } from 'chai';
 import * as anchor from "@coral-xyz/anchor";
-import { program, provider, brandList, initializeBrandList, log, TOKEN_METADATA_PROGRAM_ID, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from './common';
+import { program, provider, brandList, initializeProgramState, initializeBrandList, log, TOKEN_METADATA_PROGRAM_ID, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from './common';
 
 describe("Achievement Tests", () => {
   before(initializeBrandList);

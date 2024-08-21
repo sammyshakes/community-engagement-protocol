@@ -4,7 +4,6 @@ use anchor_lang::prelude::*;
 pub struct Brand {
     pub name: String,
     pub description: String,
-    pub admins: Vec<Pubkey>,
     pub achievements: Vec<Pubkey>,
     pub memberships: Vec<Pubkey>,
     pub creation_date: i64,
@@ -31,7 +30,6 @@ impl BrandList {
 pub struct BrandInfo {
     pub name: String,
     pub description: String,
-    pub admins: Vec<Pubkey>,
     pub achievements: Vec<Pubkey>,
 }
 

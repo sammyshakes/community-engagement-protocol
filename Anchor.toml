@@ -7,12 +7,17 @@ skip-lint = false
 [programs.localnet]
 community_engagement_protocol = "7FQ74JMt2Eeca2RD2aLVBv4No8e9PUt8SHfGsUzKhqje"
 
+[programs.devnet]
+community_engagement_protocol = "7FQ74JMt2Eeca2RD2aLVBv4No8e9PUt8SHfGsUzKhqje"
+
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
+# cluster = "devnet"
 cluster = "Localnet"
-wallet = "~/.config/solana/id.json"
+# wallet = "~/.config/solana/id.json"
+wallet = "./deploy-keypair.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
