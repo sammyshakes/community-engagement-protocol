@@ -1,9 +1,10 @@
 import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
-import { program, provider, brandList, initializeProgramState, initializeBrandList, createUniqueBrand, log, TOKEN_METADATA_PROGRAM_ID } from './common';
+import { program, provider, brandList, initializeProgramState, initializeBrandList, createUniqueBrand, log, TOKEN_METADATA_PROGRAM_ID, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR } from './common';
 
 describe("Membership Tests", () => {
+  before(initializeProgramState);
   before(initializeBrandList);
 
   let membershipData: anchor.web3.Keypair;
@@ -27,6 +28,7 @@ describe("Membership Tests", () => {
       .accounts({
         brand: brand.publicKey,
         brandList: brandList.publicKey,
+        // tronicAdmin: TRONIC_ADMIN_PUBKEY,
       })
       .signers([brand])
       .rpc();
@@ -47,9 +49,9 @@ describe("Membership Tests", () => {
             .accounts({
                 brand: brand.publicKey,
                 membershipData: membershipData.publicKey,
-                admin: admin.publicKey,
+                tronicAdmin: TRONIC_ADMIN_PUBKEY,
             })
-            .signers([membershipData])
+            .signers([membershipData, TRONIC_ADMIN_KEYPAIR])
             .rpc();
 
         log("Membership data initialized");
@@ -65,7 +67,6 @@ describe("Membership Tests", () => {
         expect(account.maxSupply.toNumber()).to.equal(1000);
         expect(account.isElastic).to.be.true;
         expect(account.maxTiers).to.equal(5);
-        expect(account.admin.toString()).to.equal(admin.publicKey.toString());
 
         // Check if the membership was added to the brand
         const brandAccount = await program.account.brand.fetch(brand.publicKey);
@@ -94,7 +95,7 @@ describe("Membership Tests", () => {
         .createMembershipTier(tierId, duration, isOpen, tierUri)
         .accounts({
           membershipData: membershipData.publicKey,
-          authority: provider.wallet.publicKey,
+          tronicAdmin: TRONIC_ADMIN_PUBKEY,
         })
         .rpc();
 
@@ -119,7 +120,6 @@ describe("Membership Tests", () => {
   it("Mints a membership NFT", async () => {
     const mint = anchor.web3.Keypair.generate();
     const recipient = anchor.web3.Keypair.generate();
-    const admin = provider.wallet;
 
     log("Minting membership NFT");
     log("Mint address:", mint.publicKey.toBase58());
@@ -165,16 +165,9 @@ describe("Membership Tests", () => {
         .accounts({
           membershipData: membershipData.publicKey,
           mint: mint.publicKey,
-          // tokenAccount: tokenAccountAddress,
           recipient: recipient.publicKey,
-          admin: admin.publicKey,
           metadata: metadataAddress,
           masterEdition: masterEditionAddress,
-          // tokenProgram: TOKEN_PROGRAM_ID,
-          // associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          // tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
-          // systemProgram: anchor.web3.SystemProgram.programId,
-          // rent: anchor.web3.SYSVAR_RENT_PUBKEY,
         })
         .signers([mint])
         .rpc();
@@ -237,9 +230,9 @@ describe("Membership Tests", () => {
         .accounts({
           brand: brand.publicKey,
           membershipData: membershipData.publicKey,
-          admin: admin.publicKey,
+          tronicAdmin: TRONIC_ADMIN_PUBKEY,
         })
-        .signers([membershipData])
+        .signers([membershipData, TRONIC_ADMIN_KEYPAIR])
         .rpc();
   
       log("Multi-tier membership data initialized");
@@ -264,7 +257,6 @@ describe("Membership Tests", () => {
             )
             .accounts({
               membershipData: membershipData.publicKey,
-              authority: admin.publicKey,
             })
             .rpc();
           log(`${tier.id} tier created`);
@@ -357,7 +349,6 @@ describe("Membership Tests", () => {
                     mint: mint.publicKey,
                     // tokenAccount: tokenAccountAddress,
                     recipient: recipient.publicKey,
-                    admin: admin.publicKey,
                     metadata: metadataAddress,
                     masterEdition: masterEditionAddress,
                     // tokenProgram: TOKEN_PROGRAM_ID,
@@ -420,7 +411,6 @@ describe("Membership Tests", () => {
       .accounts({
         brand: brand.publicKey,
         membershipData: membershipData.publicKey,
-        admin: admin.publicKey,
       })
       .signers([membershipData])
       .rpc();
@@ -464,7 +454,6 @@ describe("Membership Tests", () => {
         .accounts({
           brand: wrongBrand.publicKey,
           membershipData: newMembershipData.publicKey,
-          admin: admin.publicKey,
         })
         .signers([newMembershipData])
         .rpc();
@@ -498,7 +487,6 @@ describe("Membership Tests", () => {
       .accounts({
         brand: brand.publicKey,
         membershipData: membershipData.publicKey,
-        admin: admin.publicKey,
       })
       .signers([membershipData])
       .rpc();
@@ -518,7 +506,7 @@ describe("Membership Tests", () => {
       .accounts({
         // brand: brand.publicKey,
         membershipData: membershipData.publicKey,
-        authority: admin.publicKey,
+        // authority: admin.publicKey,
       })
       .rpc();
 

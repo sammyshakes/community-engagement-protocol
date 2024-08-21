@@ -21,5 +21,4 @@ pub struct MembershipData {
     pub total_minted: u64,
     pub total_burned: u64,
     pub tiers: Vec<MembershipTier>,
-    pub admin: Pubkey,
 }

@@ -1,12 +1,12 @@
 use super::*;
-use crate::brand::Brand;
+use crate::{brand::Brand, errors::CepError, ProgramState};
 use mpl_token_metadata::types::DataV2;
 
 #[derive(Accounts)]
 pub struct InitializeMembership<'info> {
     #[account(mut)]
     pub brand: Account<'info, Brand>,
-    #[account(init, payer = admin, space = 
+    #[account(init, payer = tronic_admin, space = 
         8 +  // discriminator
         32 +  // brand (Pubkey)
         8 +  // membership_id
@@ -22,8 +22,14 @@ pub struct InitializeMembership<'info> {
         (4 + 10 + 8 + 1 + 4 + 200) * 10  // tiers (4 bytes for length prefix + max 10 bytes for tier_id + 8 bytes for duration + 1 byte for is_open + 4 bytes for length prefix + max 200 bytes for tier_uri) * max 10 tiers
     )]
     pub membership_data: Account<'info, MembershipData>,
+    #[account(
+        seeds = [b"program-state"],
+        bump,
+        constraint = program_state.tronic_admin == tronic_admin.key() @ CepError::UnauthorizedTronicAdmin
+    )]
+    pub program_state: Account<'info, ProgramState>,
     #[account(mut)]
-    pub admin: Signer<'info>,
+    pub tronic_admin: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -49,7 +55,6 @@ pub fn initialize_membership(
     membership_data.max_supply = max_supply;
     membership_data.is_elastic = is_elastic;
     membership_data.max_tiers = max_tiers;
-    membership_data.admin = ctx.accounts.admin.key();
     membership_data.total_minted = 0;
     membership_data.total_burned = 0;
     membership_data.tiers = Vec::new();
@@ -66,23 +71,29 @@ pub struct MintMembership<'info> {
     pub membership_data: Account<'info, MembershipData>,
     #[account(
         init,
-        payer = admin,
+        payer = tronic_admin,
         mint::decimals = 0,
-        mint::authority = admin.key(),
-        mint::freeze_authority = admin.key(),
+        mint::authority = tronic_admin.key(),
+        mint::freeze_authority = tronic_admin.key(),
     )]
     pub mint: Account<'info, Mint>,
     #[account(
         init_if_needed,
-        payer = admin,
+        payer = tronic_admin,
         associated_token::mint = mint,
         associated_token::authority = recipient,
     )]
     pub token_account: Account<'info, TokenAccount>,
     /// CHECK: This is the account that will receive the minted token
     pub recipient: UncheckedAccount<'info>,
-    #[account(mut, constraint = admin.key() == membership_data.admin @ MembershipError::Unauthorized)]
-    pub admin: Signer<'info>,
+    #[account(
+        seeds = [b"program-state"],
+        bump,
+        constraint = program_state.tronic_admin == tronic_admin.key() @ CepError::UnauthorizedTronicAdmin
+    )]
+    pub program_state: Account<'info, ProgramState>,
+    #[account(mut)]
+    pub tronic_admin: Signer<'info>,
     /// CHECK: This is the metadata account that will be created
     #[account(mut)]
     pub metadata: UncheckedAccount<'info>,
@@ -111,7 +122,7 @@ pub fn mint_membership(ctx: Context<MintMembership>, tier_index: u8) -> Result<(
             anchor_spl::token::MintTo {
                 mint: ctx.accounts.mint.to_account_info(),
                 to: ctx.accounts.token_account.to_account_info(),
-                authority: ctx.accounts.admin.to_account_info(),
+                authority: ctx.accounts.tronic_admin.to_account_info(),
             },
         ),
         1,
@@ -122,9 +133,9 @@ pub fn mint_membership(ctx: Context<MintMembership>, tier_index: u8) -> Result<(
     let metadata_accounts = CreateMetadataAccountsV3 {
         metadata: ctx.accounts.metadata.to_account_info(),
         mint: ctx.accounts.mint.to_account_info(),
-        mint_authority: ctx.accounts.admin.to_account_info(),
-        payer: ctx.accounts.admin.to_account_info(),
-        update_authority: ctx.accounts.admin.to_account_info(),
+        mint_authority: ctx.accounts.tronic_admin.to_account_info(),
+        payer: ctx.accounts.tronic_admin.to_account_info(),
+        update_authority: ctx.accounts.tronic_admin.to_account_info(),
         system_program: ctx.accounts.system_program.to_account_info(),
         rent: ctx.accounts.rent.to_account_info(),
     };
@@ -154,9 +165,9 @@ pub fn mint_membership(ctx: Context<MintMembership>, tier_index: u8) -> Result<(
     let master_edition_accounts = CreateMasterEditionV3 {
         edition: ctx.accounts.master_edition.to_account_info(),
         mint: ctx.accounts.mint.to_account_info(),
-        update_authority: ctx.accounts.admin.to_account_info(),
-        mint_authority: ctx.accounts.admin.to_account_info(),
-        payer: ctx.accounts.admin.to_account_info(),
+        update_authority: ctx.accounts.tronic_admin.to_account_info(),
+        mint_authority: ctx.accounts.tronic_admin.to_account_info(),
+        payer: ctx.accounts.tronic_admin.to_account_info(),
         metadata: ctx.accounts.metadata.to_account_info(),
         token_program: ctx.accounts.token_program.to_account_info(),
         system_program: ctx.accounts.system_program.to_account_info(),
@@ -183,7 +194,14 @@ pub struct CreateMembershipTier<'info> {
     pub brand: Account<'info, Brand>,
     #[account(mut, has_one = brand)]
     pub membership_data: Account<'info, MembershipData>,
-    pub authority: Signer<'info>,
+    #[account(
+        seeds = [b"program-state"],
+        bump,
+        constraint = program_state.tronic_admin == tronic_admin.key() @ CepError::UnauthorizedTronicAdmin
+    )]
+    pub program_state: Account<'info, ProgramState>,
+    #[account(mut)]
+    pub tronic_admin: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -201,11 +219,6 @@ pub fn create_membership_tier(
     require!(
         membership_data.brand == brand.key(),
         MembershipError::InvalidBrand
-    );
-
-    require!(
-        membership_data.admin == ctx.accounts.authority.key(),
-        MembershipError::Unauthorized
     );
 
     require!(
