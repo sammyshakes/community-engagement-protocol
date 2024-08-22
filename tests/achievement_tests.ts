@@ -1,27 +1,15 @@
 // tests/achievement_tests.ts
 import { expect } from 'chai';
 import * as anchor from "@coral-xyz/anchor";
-import { program, provider, brandList, initializeProgramState, initializeBrandList, log, TOKEN_METADATA_PROGRAM_ID, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR, fundAccount } from './common';
+import { program, provider, brandList, createUniqueBrand, initializeProgramState, initializeBrandList, log, TOKEN_METADATA_PROGRAM_ID, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR, fundAccount } from './common';
 
 describe("Achievement Tests", () => {
   before(initializeProgramState);
   before(initializeBrandList);
 
   it("Lists achievements for a brand", async () => {
-    const brand = anchor.web3.Keypair.generate();
-    const name = "Test Brand";
-    const description = "A test brand for our community engagement protocol";
-
-    await program.methods
-      .createBrand(name, description, null, null, null, [])
-      .accounts({
-        brand: brand.publicKey,
-        brandList: brandList.publicKey,
-      })
-      .signers([brand])
-      .rpc();
-
-    log("Created Brand for listing achievements test with publicKey:", brand.publicKey.toBase58());
+    //Create a brand
+    const brandPda = await createUniqueBrand();
 
     const achievementCount = 3;
     const achievementKeys: anchor.web3.PublicKey[] = [];
@@ -31,7 +19,7 @@ describe("Achievement Tests", () => {
       await program.methods
         .createAchievement(`Achievement ${i+1}`, `Description ${i+1}`, `Criteria ${i+1}`, 100 * (i+1))
         .accounts({
-          brand: brand.publicKey,
+          brand: brandPda,
           achievement: achievement.publicKey,
           authority: provider.wallet.publicKey,
         })
@@ -45,7 +33,7 @@ describe("Achievement Tests", () => {
     const achievements = await program.methods
       .listBrandAchievements()
       .accounts({
-        brand: brand.publicKey,
+        brand: brandPda,
       })
       .view();
 
@@ -58,18 +46,7 @@ describe("Achievement Tests", () => {
   });
 
   it("Gets achievement info", async () => {
-    const brand = anchor.web3.Keypair.generate();
-    await program.methods
-      .createBrand("Test Brand", "A test brand", null, null, null, [])
-      .accounts({
-        brand: brand.publicKey,
-        brandList: brandList.publicKey,
-      })
-      .signers([brand])
-      .rpc();
-
-    log("Created Brand for get achievement info test with publicKey:", brand.publicKey.toBase58());
-
+    const brandPda = await createUniqueBrand();
     const achievement = anchor.web3.Keypair.generate();
     const name = "Test Achievement";
     const description = "A test achievement";
@@ -79,7 +56,7 @@ describe("Achievement Tests", () => {
     await program.methods
       .createAchievement(name, description, criteria, points)
       .accounts({
-        brand: brand.publicKey,
+        brand: brandPda,
         achievement: achievement.publicKey,
         authority: provider.wallet.publicKey,
       })
@@ -101,14 +78,13 @@ describe("Achievement Tests", () => {
     expect(achievementInfo.description).to.equal(description);
     expect(achievementInfo.criteria).to.equal(criteria);
     expect(achievementInfo.points).to.equal(points);
-    expect(achievementInfo.brand.toString()).to.equal(brand.publicKey.toString());
+    expect(achievementInfo.brand.toString()).to.equal(brandPda.toString());
     expect(achievementInfo.createdAt.toNumber()).to.be.a('number');
     expect(achievementInfo.updatedAt.toNumber()).to.be.a('number');
   });
 
   it("Creates and awards a fungible achievement", async () => {
     log("Starting fungible achievement test");
-    const brand = anchor.web3.Keypair.generate();
     const achievement = anchor.web3.Keypair.generate();
     const tokenMint = anchor.web3.Keypair.generate();
     const user = anchor.web3.Keypair.generate();
@@ -116,24 +92,8 @@ describe("Achievement Tests", () => {
     const userAchievement = anchor.web3.Keypair.generate();
   
     log("Creating brand");
-    await program.methods
-      .createBrand(
-        "Test Brand",
-        "A test brand for fungible achievements",
-        null,
-        null,
-        null,
-        []
-      )
-      .accounts({
-        brand: brand.publicKey,
-        brandList: brandList.publicKey,
-        tronicAdmin: TRONIC_ADMIN_PUBKEY,
-      })
-      .signers([brand, TRONIC_ADMIN_KEYPAIR])
-      .rpc();
-    log("Brand created with publicKey:", brand.publicKey.toBase58());
-  
+    const brandPda = await createUniqueBrand();
+
     log("Creating fungible achievement");
     await program.methods
       .createFungibleAchievement(
@@ -144,7 +104,7 @@ describe("Achievement Tests", () => {
         new anchor.BN(1000000)
       )
       .accounts({
-        brand: brand.publicKey,
+        brand: brandPda,
         achievement: achievement.publicKey,
         tokenMint: tokenMint.publicKey,
         tronicAdmin: TRONIC_ADMIN_PUBKEY,
@@ -175,7 +135,7 @@ describe("Achievement Tests", () => {
     await program.methods
       .awardFungibleAchievement()
       .accounts({
-        brand: brand.publicKey,
+        brand: brandPda,
         userAchievement: userAchievement.publicKey,
         achievement: achievement.publicKey,
         user: user.publicKey,
@@ -203,18 +163,8 @@ describe("Achievement Tests", () => {
 
 
   it("Creates a non-fungible achievement", async () => {
-    const brand = anchor.web3.Keypair.generate();
-    await program.methods
-      .createBrand("Test Brand", "A test brand", null, null, null, [])
-      .accounts({
-        brand: brand.publicKey,
-        brandList: brandList.publicKey,
-      })
-      .signers([brand])
-      .rpc();
-  
-    log("Created Brand for non-fungible achievement test with publicKey:", brand.publicKey.toBase58());
-  
+    const brandPda = await createUniqueBrand();
+   
     const achievement = anchor.web3.Keypair.generate();
     const mint = anchor.web3.Keypair.generate();
 
@@ -232,7 +182,7 @@ describe("Achievement Tests", () => {
           "https://example.com/metadata.json"
         )
         .accounts({
-          brand: brand.publicKey,
+          brand: brandPda,
           achievement: achievement.publicKey,
           mint: mint.publicKey,
         })
@@ -266,19 +216,7 @@ describe("Achievement Tests", () => {
   });
 
   it("Fails to create a fungible achievement with non-admin signer", async () => {
-    const brand = anchor.web3.Keypair.generate();
-    await program.methods
-      .createBrand("Test Brand", "A test brand", null, null, null, [])
-      .accounts({
-        brand: brand.publicKey,
-        brandList: brandList.publicKey,
-        tronicAdmin: TRONIC_ADMIN_PUBKEY,
-      })
-      .signers([brand, TRONIC_ADMIN_KEYPAIR])
-      .rpc();
-
-    log("Created Brand for non-admin fungible achievement test with publicKey:", brand.publicKey.toBase58());
-
+    const brandPda = await createUniqueBrand();
     const achievement = anchor.web3.Keypair.generate();
     const tokenMint = anchor.web3.Keypair.generate();
     const nonAdminKeypair = anchor.web3.Keypair.generate();
@@ -296,7 +234,7 @@ describe("Achievement Tests", () => {
           new anchor.BN(1000000)
         )
         .accounts({
-          brand: brand.publicKey,
+          brand: brandPda,
           achievement: achievement.publicKey,
           tokenMint: tokenMint.publicKey,
           tronicAdmin: nonAdminKeypair.publicKey,
@@ -314,19 +252,7 @@ describe("Achievement Tests", () => {
   });
 
   it("Fails to create a non-fungible achievement with non-admin signer", async () => {
-    const brand = anchor.web3.Keypair.generate();
-    await program.methods
-      .createBrand("Test Brand", "A test brand", null, null, null, [])
-      .accounts({
-        brand: brand.publicKey,
-        brandList: brandList.publicKey,
-        tronicAdmin: TRONIC_ADMIN_PUBKEY,
-      })
-      .signers([brand, TRONIC_ADMIN_KEYPAIR])
-      .rpc();
-
-    log("Created Brand for non-admin non-fungible achievement test with publicKey:", brand.publicKey.toBase58());
-
+    const brandPda = await createUniqueBrand();
     const achievement = anchor.web3.Keypair.generate();
     const mint = anchor.web3.Keypair.generate();
     const nonAdminKeypair = anchor.web3.Keypair.generate();
@@ -344,7 +270,7 @@ describe("Achievement Tests", () => {
           "https://example.com/metadata.json"
         )
         .accounts({
-          brand: brand.publicKey,
+          brand: brandPda,
           achievement: achievement.publicKey,
           mint: mint.publicKey,
           tronicAdmin: nonAdminKeypair.publicKey,

@@ -3,7 +3,7 @@ import { Program } from "@coral-xyz/anchor";
 import { CommunityEngagementProtocol } from "../target/types/community_engagement_protocol";
 import { expect } from 'chai';
 
-import { program, provider, brandList, initializeProgramState, initializeBrandList, log, fundAccount, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR } from './common';
+import { program, provider, brandList, createUniqueBrand, initializeProgramState, initializeBrandList, log, fundAccount, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR } from './common';
 
 type RewardType = {
     fungible?: {
@@ -25,34 +25,16 @@ type RewardAccount = {
     updatedAt: anchor.BN;
     issuedCount: anchor.BN;
   };
+  
 
 describe("Reward Tests", () => {
   before(initializeProgramState);
   before(initializeBrandList);
 
-  let brand: anchor.web3.Keypair;
+  let brandPda: anchor.web3.PublicKey;
 
   before(async () => {
-    // brandList = anchor.web3.Keypair.generate();
-    brand = anchor.web3.Keypair.generate();
-
-    // Create a Brand
-    await program.methods
-      .createBrand(
-        "Test Brand",
-        "A test brand for rewards",
-        null,
-        null,
-        null,
-        []
-      )
-      .accounts({
-        brand: brand.publicKey,
-        brandList: brandList.publicKey,
-        tronicAdmin: TRONIC_ADMIN_PUBKEY,
-      })
-      .signers([brand, TRONIC_ADMIN_KEYPAIR])
-      .rpc();
+    brandPda = await createUniqueBrand();
   });
 
   it("Creates a fungible reward", async () => {
@@ -66,7 +48,7 @@ describe("Reward Tests", () => {
         new anchor.BN(1000000) // 1 million tokens
       )
       .accounts({
-        brand: brand.publicKey,
+        brand: brandPda,
         reward: reward.publicKey,
         tokenMint: tokenMint.publicKey,
         tronicAdmin: TRONIC_ADMIN_PUBKEY,
@@ -104,7 +86,7 @@ describe("Reward Tests", () => {
         "https://example.com/metadata.json"
       )
       .accounts({
-        brand: brand.publicKey,
+        brand: brandPda,
         reward: reward.publicKey,
         tokenMint: tokenMint.publicKey,
         tronicAdmin: TRONIC_ADMIN_PUBKEY,
@@ -145,7 +127,7 @@ describe("Reward Tests", () => {
         new anchor.BN(1000000) // 1 million tokens
       )
       .accounts({
-        brand: brand.publicKey,
+        brand: brandPda,
         reward: reward.publicKey,
         tokenMint: tokenMint.publicKey,
         tronicAdmin: TRONIC_ADMIN_PUBKEY,
@@ -162,7 +144,7 @@ describe("Reward Tests", () => {
     await program.methods
       .issueFungibleReward(new anchor.BN(100)) // Issue 100 tokens
       .accounts({
-        brand: brand.publicKey,
+        brand: brandPda,
         reward: reward.publicKey,
         user: user.publicKey,
         tronicAdmin: TRONIC_ADMIN_PUBKEY,
@@ -200,7 +182,7 @@ describe("Reward Tests", () => {
         "https://example.com/metadata.json"
       )
       .accounts({
-        brand: brand.publicKey,
+        brand: brandPda,
         reward: reward.publicKey,
         tokenMint: tokenMint.publicKey,
         tronicAdmin: TRONIC_ADMIN_PUBKEY,
@@ -252,7 +234,7 @@ describe("Reward Tests", () => {
       await program.methods
         .createFungibleReward("Test Reward", "A test reward", new anchor.BN(1000000))
         .accounts({
-          brand: brand.publicKey,
+          brand: brandPda,
           reward: reward.publicKey,
           tokenMint: tokenMint.publicKey,
           tronicAdmin: nonAdminKeypair.publicKey,
@@ -278,7 +260,7 @@ describe("Reward Tests", () => {
       await program.methods
         .createNonFungibleReward("Test NFT Reward", "A test NFT reward", "https://example.com/metadata.json")
         .accounts({
-          brand: brand.publicKey,
+          brand: brandPda,
           reward: reward.publicKey,
           tokenMint: tokenMint.publicKey,
           tronicAdmin: nonAdminKeypair.publicKey,
@@ -302,7 +284,7 @@ describe("Reward Tests", () => {
     const sig = await program.methods
       .createFungibleReward("Test Reward", "A test reward", new anchor.BN(1000000))
       .accounts({
-        brand: brand.publicKey,
+        brand: brandPda,
         reward: reward.publicKey,
         tokenMint: tokenMint.publicKey,
         tronicAdmin: TRONIC_ADMIN_PUBKEY,
@@ -320,7 +302,7 @@ describe("Reward Tests", () => {
       await program.methods
         .issueFungibleReward(new anchor.BN(100))
         .accounts({
-          brand: brand.publicKey,
+          brand: brandPda,
           reward: reward.publicKey,
           user: user.publicKey,
           tronicAdmin: nonAdminKeypair.publicKey,

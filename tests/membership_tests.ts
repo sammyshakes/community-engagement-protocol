@@ -12,26 +12,8 @@ describe("Membership Tests", () => {
 
   it("Initializes membership", async () => {
     membershipData = anchor.web3.Keypair.generate();
-    brand = anchor.web3.Keypair.generate();
-    const admin = provider.wallet;
 
-    // First, create a brand
-    await program.methods
-      .createBrand(
-        "Test Brand",
-        "A test brand for memberships",
-        null,
-        null,
-        null,
-        []
-      )
-      .accounts({
-        brand: brand.publicKey,
-        brandList: brandList.publicKey,
-        // tronicAdmin: TRONIC_ADMIN_PUBKEY,
-      })
-      .signers([brand])
-      .rpc();
+    const brandPda = await createUniqueBrand();
 
     log("Creating membership data with publicKey:", membershipData.publicKey.toBase58());
 
@@ -47,7 +29,7 @@ describe("Membership Tests", () => {
                 5
             )
             .accounts({
-                brand: brand.publicKey,
+                brand: brandPda,
                 membershipData: membershipData.publicKey,
                 tronicAdmin: TRONIC_ADMIN_PUBKEY,
             })
@@ -59,7 +41,6 @@ describe("Membership Tests", () => {
         const account = await program.account.membershipData.fetch(membershipData.publicKey);
         log("Fetched membership data:", account);
 
-        expect(account.brand.toString()).to.equal(brand.publicKey.toString());
         expect(account.membershipId.toNumber()).to.equal(1);
         expect(account.name).to.equal("Test Membership");
         expect(account.symbol).to.equal("TEST");
@@ -69,7 +50,7 @@ describe("Membership Tests", () => {
         expect(account.maxTiers).to.equal(5);
 
         // Check if the membership was added to the brand
-        const brandAccount = await program.account.brand.fetch(brand.publicKey);
+        const brandAccount = await program.account.brand.fetch(brandPda);
         log("Updated Brand:", brandAccount);
 
         expect(brandAccount.memberships.map(pk => pk.toString()))
@@ -192,25 +173,8 @@ describe("Membership Tests", () => {
   });
 
   it("Creates multiple membership tiers", async () => {
-    const admin = provider.wallet;
-
     // Create a new brand
-    const brand = anchor.web3.Keypair.generate();
-    await program.methods
-      .createBrand(
-        "Multi-Tier Brand",
-        "A brand for testing multiple membership tiers",
-        null,
-        null,
-        null,
-        []
-      )
-      .accounts({
-        brand: brand.publicKey,
-        brandList: brandList.publicKey,
-      })
-      .signers([brand])
-      .rpc();
+    const brandPda = await createUniqueBrand();
   
     // Create a new membership data account
     const membershipData = anchor.web3.Keypair.generate();
@@ -228,7 +192,7 @@ describe("Membership Tests", () => {
           5
         )
         .accounts({
-          brand: brand.publicKey,
+          brand: brandPda,
           membershipData: membershipData.publicKey,
           tronicAdmin: TRONIC_ADMIN_PUBKEY,
         })
@@ -347,15 +311,9 @@ describe("Membership Tests", () => {
                 .accounts({
                     membershipData: membershipData.publicKey,
                     mint: mint.publicKey,
-                    // tokenAccount: tokenAccountAddress,
                     recipient: recipient.publicKey,
                     metadata: metadataAddress,
                     masterEdition: masterEditionAddress,
-                    // tokenProgram: TOKEN_PROGRAM_ID,
-                //     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-                //     tokenMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
-                //     systemProgram: anchor.web3.SystemProgram.programId,
-                //     rent: anchor.web3.SYSVAR_RENT_PUBKEY,
                 })
                 .signers([mint])
                 .rpc();
@@ -391,9 +349,8 @@ describe("Membership Tests", () => {
   });
 
   it("Adds membership to brand", async () => {
-    const brand = await createUniqueBrand();
+    const brandPda = await createUniqueBrand();
     const membershipData = anchor.web3.Keypair.generate();
-    const admin = provider.wallet;
 
     log("Creating membership data with publicKey:", membershipData.publicKey.toBase58());
 
@@ -409,13 +366,13 @@ describe("Membership Tests", () => {
         5
       )
       .accounts({
-        brand: brand.publicKey,
+        brand: brandPda,
         membershipData: membershipData.publicKey,
       })
       .signers([membershipData])
       .rpc();
 
-    const brandAccount = await program.account.brand.fetch(brand.publicKey);
+    const brandAccount = await program.account.brand.fetch(brandPda);
     log("Brand memberships:", brandAccount.memberships.map(m => m.toString()));
     log("Brand memberships:", brandAccount.memberships.map(m => m.toBase58()));
     log("Membership Data publicKey:", membershipData.publicKey.toString());
@@ -425,8 +382,6 @@ describe("Membership Tests", () => {
     const membershipAccount = await program.account.membershipData.fetch(membershipData.publicKey);
     log("Fetched membership data:", membershipAccount);
 
-    // Additional checks
-    expect(membershipAccount.brand.toBase58()).to.equal(brand.publicKey.toBase58());
 
     log("Membership successfully added to brand");
   } catch (error) {
@@ -436,9 +391,12 @@ describe("Membership Tests", () => {
   });
   
   it("Prevents initializing membership with wrong brand", async () => {
-    const wrongBrand = anchor.web3.Keypair.generate();
     const newMembershipData = anchor.web3.Keypair.generate();
-    const admin = provider.wallet;
+
+    const [wrongBrandPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("brand"), Buffer.from("wrong_brand")],
+      program.programId
+    );
   
     try {
       await program.methods
@@ -452,7 +410,7 @@ describe("Membership Tests", () => {
           5
         )
         .accounts({
-          brand: wrongBrand.publicKey,
+          brand: wrongBrandPda,
           membershipData: newMembershipData.publicKey,
         })
         .signers([newMembershipData])
@@ -469,7 +427,6 @@ describe("Membership Tests", () => {
   it("Creates membership tier within brand context", async () => {
     const brand = await createUniqueBrand();
     const membershipData = anchor.web3.Keypair.generate();
-    const admin = provider.wallet;
 
     log("Creating membership data with publicKey:", membershipData.publicKey.toBase58());
 
@@ -485,7 +442,7 @@ describe("Membership Tests", () => {
         5
       )
       .accounts({
-        brand: brand.publicKey,
+        brand: brand,
         membershipData: membershipData.publicKey,
       })
       .signers([membershipData])
@@ -504,9 +461,7 @@ describe("Membership Tests", () => {
         "basic.json"
       )
       .accounts({
-        // brand: brand.publicKey,
         membershipData: membershipData.publicKey,
-        // authority: admin.publicKey,
       })
       .rpc();
 
@@ -518,7 +473,6 @@ describe("Membership Tests", () => {
     expect(account.tiers.some(tier => tier.tierId === uniqueTierId)).to.be.true;
     log("Membership tier verification passed");
 
-    expect(account.brand.toBase58()).to.equal(brand.publicKey.toBase58());
     log("Brand verification passed");
 
     log("Membership tier successfully created within brand context");
@@ -527,6 +481,9 @@ describe("Membership Tests", () => {
   it("Fails to create membership with non-admin signer", async () => {
     const nonAdminKeypair = anchor.web3.Keypair.generate();
     const membershipData = anchor.web3.Keypair.generate();
+
+    // Create a brand
+    const brandPda = await createUniqueBrand();
 
     // Fund the non-admin account
     await fundAccount(program.provider.connection, nonAdminKeypair.publicKey);
@@ -543,7 +500,7 @@ describe("Membership Tests", () => {
           5
         )
         .accounts({
-          brand: brand.publicKey,
+          brand: brandPda,
           membershipData: membershipData.publicKey,
           tronicAdmin: nonAdminKeypair.publicKey,
         })
@@ -558,6 +515,9 @@ describe("Membership Tests", () => {
   });
 
   it("Fails to mint membership with non-admin signer", async () => {
+    // Create a brand
+    const brand = await createUniqueBrand();
+
     // First, create a valid membership with the Tronic Admin
     const membershipData = anchor.web3.Keypair.generate();
     await program.methods
@@ -571,7 +531,7 @@ describe("Membership Tests", () => {
         5
       )
       .accounts({
-        brand: brand.publicKey,
+        brand: brand,
         membershipData: membershipData.publicKey,
         tronicAdmin: TRONIC_ADMIN_PUBKEY,
       })

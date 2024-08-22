@@ -115,6 +115,7 @@ pub struct InitializeBrandList<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(name: String)]
 pub struct CreateBrand<'info> {
     #[account(
         init,
@@ -128,7 +129,9 @@ pub struct CreateBrand<'info> {
                 (1 + 50) + // website (Option<String>)
                 (1 + 50) + // social_media (Option<String>)
                 (1 + 20) + // category (Option<String>)
-                (4 + 5 * 20) // tags (Vec<String>)
+                (4 + 5 * 20), // tags (Vec<String>),
+        seeds = [b"brand", name.as_bytes()],
+        bump
     )]
     pub brand: Account<'info, Brand>,
     #[account(mut)]

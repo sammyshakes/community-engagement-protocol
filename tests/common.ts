@@ -100,20 +100,20 @@ export async function initializeBrandList() {
     .signers([brandList, TRONIC_ADMIN_KEYPAIR])
     .rpc();
 
-  console.log("Initialized BrandList with publicKey:", brandList.publicKey.toBase58());
+  log("Initialized BrandList with publicKey:", brandList.publicKey.toBase58());
 }
 
 export async function createUniqueBrand() {
-  const brand = anchor.web3.Keypair.generate();
+  const name = `Test Brand ${Date.now()}`;
 
-  const [programStatePda] = anchor.web3.PublicKey.findProgramAddressSync(
-    [Buffer.from("program-state")],
+  const [brandPda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("brand"), Buffer.from(name)],
     program.programId
   );
 
   await program.methods
     .createBrand(
-      `Test Brand ${Date.now()}`,
+      name,
       "A test brand for memberships",
       null,
       null,
@@ -121,15 +121,14 @@ export async function createUniqueBrand() {
       []
     )
     .accounts({
-      brand: brand.publicKey,
       brandList: brandList.publicKey,
       tronicAdmin: TRONIC_ADMIN_PUBKEY,
     })
-    .signers([brand, TRONIC_ADMIN_KEYPAIR])
+    .signers([TRONIC_ADMIN_KEYPAIR])
     .rpc();
   
-  log("Created unique Brand with publicKey:", brand.publicKey.toBase58());
-  return brand;
+  log("Created unique Brand with publicKey:", brandPda);
+  return brandPda;
 }
 
 // Export the token-related constants and functions
