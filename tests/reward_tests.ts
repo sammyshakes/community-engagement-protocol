@@ -3,7 +3,7 @@ import { Program } from "@coral-xyz/anchor";
 import { CommunityEngagementProtocol } from "../target/types/community_engagement_protocol";
 import { expect } from 'chai';
 
-import { program, provider, brandList, createUniqueBrand, initializeProgramState, initializeBrandList, log, fundAccount, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR } from './common';
+import { program, provider, brandList, createUniqueBrand, initializeProgramState, log, fundAccount, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR } from './common';
 
 type RewardType = {
     fungible?: {
@@ -29,7 +29,6 @@ type RewardAccount = {
 
 describe("Reward Tests", () => {
   before(initializeProgramState);
-  before(initializeBrandList);
 
   let brandPda: anchor.web3.PublicKey;
 
@@ -58,7 +57,7 @@ describe("Reward Tests", () => {
   
     // Fetch and check the reward account
     const rewardAccount = await program.account.reward.fetch(reward.publicKey) as RewardAccount;
-    // console.log("Reward Account:", JSON.stringify(rewardAccount, (key, value) =>
+    // log("Reward Account:", JSON.stringify(rewardAccount, (key, value) =>
     //     typeof value === 'bigint' ? value.toString() : value
     // , 2));
 
@@ -96,7 +95,7 @@ describe("Reward Tests", () => {
 
     // Fetch and check the reward account
     const rewardAccount = await program.account.reward.fetch(reward.publicKey) as RewardAccount;
-    // console.log("Reward Account:", JSON.stringify(rewardAccount, (key, value) =>
+    // log("Reward Account:", JSON.stringify(rewardAccount, (key, value) =>
     //   typeof value === 'bigint' ? value.toString() : value
     // , 2));
 
@@ -165,10 +164,10 @@ describe("Reward Tests", () => {
     const user = anchor.web3.Keypair.generate();
     const rewardInstance = anchor.web3.Keypair.generate();
 
-    console.log("reward:", reward.publicKey.toBase58());
-    console.log("tokenMint:", tokenMint.publicKey.toBase58());
-    console.log("user:", user.publicKey.toBase58());
-    console.log("rewardInstance:", rewardInstance.publicKey.toBase58());
+    log("reward:", reward.publicKey.toBase58());
+    log("tokenMint:", tokenMint.publicKey.toBase58());
+    log("user:", user.publicKey.toBase58());
+    log("rewardInstance:", rewardInstance.publicKey.toBase58());
   
     // Airdrop some SOL to the user for rent
     const signature = await provider.connection.requestAirdrop(user.publicKey, 1000000000);
@@ -292,7 +291,7 @@ describe("Reward Tests", () => {
       .signers([reward, tokenMint, TRONIC_ADMIN_KEYPAIR])
       .rpc();
 
-      console.log("sig:", sig);
+      log("sig:", sig);
 
     // Fund the non-admin account
     await fundAccount(program.provider.connection, nonAdminKeypair.publicKey);

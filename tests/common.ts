@@ -59,9 +59,7 @@ export async function initializeProgramState() {
       const tx = await program.methods
         .initializeProgram()
         .accounts({
-          // programState: programStatePda,
           payer: TRONIC_ADMIN_KEYPAIR.publicKey,
-          // systemProgram: anchor.web3.SystemProgram.programId,
         })
         .signers([TRONIC_ADMIN_KEYPAIR])
         .rpc();
@@ -83,26 +81,6 @@ export async function initializeProgramState() {
   }
 }
 
-export async function initializeBrandList() {
-  const [programStatePda] = anchor.web3.PublicKey.findProgramAddressSync(
-    [Buffer.from("program-state")],
-    program.programId
-  );
-
-  brandList = anchor.web3.Keypair.generate();
-  
-  await program.methods
-    .initializeBrandList()
-    .accounts({
-      brandList: brandList.publicKey,
-      tronicAdmin: TRONIC_ADMIN_PUBKEY,
-    })
-    .signers([brandList, TRONIC_ADMIN_KEYPAIR])
-    .rpc();
-
-  log("Initialized BrandList with publicKey:", brandList.publicKey.toBase58());
-}
-
 export async function createUniqueBrand() {
   const name = `Test Brand ${Date.now()}`;
 
@@ -121,7 +99,6 @@ export async function createUniqueBrand() {
       []
     )
     .accounts({
-      brandList: brandList.publicKey,
       tronicAdmin: TRONIC_ADMIN_PUBKEY,
     })
     .signers([TRONIC_ADMIN_KEYPAIR])

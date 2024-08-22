@@ -36,10 +36,6 @@ pub mod community_engagement_protocol {
     }
 
     // Brand Instructions
-    pub fn initialize_brand_list(ctx: Context<InitializeBrandList>) -> Result<()> {
-        brand::instructions::initialize_brand_list(ctx)
-    }
-
     pub fn create_brand(
         ctx: Context<CreateBrand>,
         name: String,

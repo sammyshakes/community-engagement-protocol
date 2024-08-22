@@ -7,7 +7,6 @@ import {
   brandList,
   createUniqueBrand, 
   initializeProgramState,
-  initializeBrandList,
   fundAccount,
   log, 
   TRONIC_ADMIN_KEYPAIR, 
@@ -16,40 +15,44 @@ import {
 
 describe("Brand Tests", () => {
   before(initializeProgramState);
-  before(initializeBrandList);
   fundAccount(program.provider.connection, TRONIC_ADMIN_PUBKEY)
 
   it("Creates a brand", async () => {
     const name = "Test Brand";
     const description = "A test brand for our community engagement protocol";
   
-    const [programStatePda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("program-state")],
-      program.programId
-    );
-  
-    log("Program State PDA:", programStatePda.toBase58());
-    log("Tronic Admin Public Key:", TRONIC_ADMIN_PUBKEY.toBase58());
-
     const [brandPda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("brand"), Buffer.from(name)],
       program.programId
     );
   
-    const tx = await program.methods
-      .createBrand(name, description, null, null, null, [])
-      .accounts({
-        brandList: brandList.publicKey,
-        tronicAdmin: TRONIC_ADMIN_PUBKEY,
-      })
-      .signers([TRONIC_ADMIN_KEYPAIR])
-      .rpc();
-
-    log("Transaction signature:", tx);
-
-    // Fetch the logs from the transaction
-    const txInfo = await provider.connection.getTransaction(tx, { commitment: 'confirmed' });
-    log("Transaction logs:", txInfo?.meta?.logMessages);
+    const [brandListPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("brand-list")],
+      program.programId
+    );
+  
+    log("Brand PDA:", brandPda.toBase58());
+    log("BrandList PDA:", brandListPda.toBase58());
+  
+    try {
+      const tx = await program.methods
+        .createBrand(name, description, null, null, null, [])
+        .accounts({
+          tronicAdmin: TRONIC_ADMIN_PUBKEY,
+        })
+        .signers([TRONIC_ADMIN_KEYPAIR])
+        .rpc();
+  
+      log("Transaction signature:", tx);
+  
+      // Fetch the transaction details
+      const txDetails = await provider.connection.getTransaction(tx, { commitment: 'confirmed' });
+      log("Transaction logs:", txDetails?.meta?.logMessages);
+  
+    } catch (error) {
+      error("Error creating brand:", error);
+      throw error;
+    }
 
     const brandAccount = await program.account.brand.fetch(brandPda);
     log("Created Brand Account:", brandAccount);
@@ -57,6 +60,10 @@ describe("Brand Tests", () => {
     expect(brandAccount.name).to.equal(name);
     expect(brandAccount.description).to.equal(description);
     expect(brandAccount.creationDate.toNumber()).to.be.greaterThan(0);
+
+    const brandListAccount = await program.account.brandList.fetch(brandListPda);
+    log("Brand List Account:", brandListAccount);
+  
   });
 
   it("Creates a brand with enhanced metadata", async () => {
@@ -72,10 +79,15 @@ describe("Brand Tests", () => {
       program.programId
     );
 
+    const [brandListPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("brand_list")],
+      program.programId
+    );
+
     await program.methods
       .createBrand(name, description, website, socialMedia, category, tags)
       .accounts({
-        brandList: brandList.publicKey,
+        // brandList: brandListPda,
         tronicAdmin: TRONIC_ADMIN_PUBKEY,
       })
       .signers([TRONIC_ADMIN_KEYPAIR])
@@ -133,7 +145,8 @@ describe("Brand Tests", () => {
     await program.methods
       .createBrand(name, description, null, null, null, [])
       .accounts({
-        brandList: brandList.publicKey,
+        // brandList: brandListPda,
+        tronicAdmin: TRONIC_ADMIN_PUBKEY,
       })
       .signers([TRONIC_ADMIN_KEYPAIR])
       .rpc();
@@ -148,31 +161,43 @@ describe("Brand Tests", () => {
   });
 
   it("Lists all brands", async () => {
+    // Get brandlist PDA
+    const [brandListPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("brand-list")],
+      program.programId
+    );
+  
+    log("BrandList PDA:", brandListPda.toBase58());
+  
+    // Create an initial brand to ensure BrandList is initialized
+    const initialBrandPda = await createUniqueBrand();
+    log("Initial Brand created:", initialBrandPda.toBase58());
+  
     // Get initial count of brands
-    const initialHubs = await program.account.brandList.fetch(brandList.publicKey);
-    log("Initial Brands:", initialHubs);
-
-    const initialCount = initialHubs.brands.length;
+    const initialBrandList = await program.account.brandList.fetch(brandListPda);
+    log("Initial Brands:", initialBrandList.brands.map(b => b.toBase58()));
+  
+    const initialCount = initialBrandList.brands.length;
   
     // Create multiple brands
-    const newHubCount = 3;
-    const hubKeys: anchor.web3.PublicKey[] = [];
-    for (let i = 0; i < newHubCount; i++) {
+    const newBrandCount = 3;
+    const brandKeys: anchor.web3.PublicKey[] = [];
+    for (let i = 0; i < newBrandCount; i++) {
       const brandPda = await createUniqueBrand();
-      log(`Created Brand with publicKey:`, brandPda);
-      hubKeys.push(brandPda);
+      log(`Created Brand with publicKey:`, brandPda.toBase58());
+      brandKeys.push(brandPda);
     }
   
     // List all brands
-    const allBrands = await program.account.brandList.fetch(brandList.publicKey);
-    log("All Brands:", allBrands);
-
-    // Check that the correct number of new hubs were added
-    expect(allBrands.brands.length).to.equal(initialCount + newHubCount);
+    const updatedBrandList = await program.account.brandList.fetch(brandListPda);
+    log("All Brands:", updatedBrandList.brands.map(b => b.toBase58()));
   
-    // Check that the new hub keys are in the list
-    hubKeys.forEach(hubKey => {
-      expect(allBrands.brands.some(listedKey => listedKey.equals(hubKey))).to.be.true;
+    // Check that the correct number of new brands were added
+    expect(updatedBrandList.brands.length).to.equal(initialCount + newBrandCount);
+  
+    // Check that the new brand keys are in the list
+    brandKeys.forEach(brandKey => {
+      expect(updatedBrandList.brands.some(listedKey => listedKey.equals(brandKey))).to.be.true;
     });
   });
 
@@ -189,6 +214,11 @@ describe("Brand Tests", () => {
       program.programId
     );
 
+    const [brandListPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("brand_list")],
+      program.programId
+    );
+
     log("Program State PDA:", programStatePda.toBase58());
     log("Non-admin Public Key:", nonAdminKeypair.publicKey.toBase58());
     log("Actual Tronic Admin Public Key:", TRONIC_ADMIN_PUBKEY.toBase58());
@@ -202,7 +232,7 @@ describe("Brand Tests", () => {
       const tx = await program.methods
         .createBrand(name, description, null, null, null, [])
         .accounts({
-          brandList: brandList.publicKey,
+          // brandList: brandListPda,
           tronicAdmin: nonAdminKeypair.publicKey,
         })
         .signers([nonAdminKeypair])
@@ -238,11 +268,16 @@ describe("Brand Tests", () => {
       [Buffer.from("brand"), Buffer.from(brandName)],
       program.programId
     );
+
+    const [brandListPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("brand_list")],
+      program.programId
+    );
   
     await program.methods
       .createBrand(brandName, "Original description", null, null, null, [])
       .accounts({
-        brandList: brandList.publicKey,
+        // brandList: brandListPda,
         tronicAdmin: TRONIC_ADMIN_PUBKEY,
       })
       .signers([TRONIC_ADMIN_KEYPAIR])

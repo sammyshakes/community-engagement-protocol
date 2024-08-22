@@ -1,11 +1,10 @@
 import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
-import { program, provider, brandList, initializeProgramState, initializeBrandList, createUniqueBrand, log, TOKEN_METADATA_PROGRAM_ID, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR, fundAccount } from './common';
+import { program, provider, brandList, initializeProgramState, createUniqueBrand, log, TOKEN_METADATA_PROGRAM_ID, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR, fundAccount } from './common';
 
 describe("Membership Tests", () => {
   before(initializeProgramState);
-  before(initializeBrandList);
 
   let membershipData: anchor.web3.Keypair;
   let brand: anchor.web3.Keypair;

@@ -1,11 +1,10 @@
 // tests/achievement_tests.ts
 import { expect } from 'chai';
 import * as anchor from "@coral-xyz/anchor";
-import { program, provider, brandList, createUniqueBrand, initializeProgramState, initializeBrandList, log, TOKEN_METADATA_PROGRAM_ID, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR, fundAccount } from './common';
+import { program, provider, brandList, createUniqueBrand, initializeProgramState, log, TOKEN_METADATA_PROGRAM_ID, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, TRONIC_ADMIN_PUBKEY, TRONIC_ADMIN_KEYPAIR, fundAccount } from './common';
 
 describe("Achievement Tests", () => {
   before(initializeProgramState);
-  before(initializeBrandList);
 
   it("Lists achievements for a brand", async () => {
     //Create a brand
