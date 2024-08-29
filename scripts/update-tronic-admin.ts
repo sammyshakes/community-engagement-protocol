@@ -1,42 +1,39 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { CommunityEngagementProtocol } from "../target/types/community_engagement_protocol";
+import fs from "fs";
+import path from "path";
 
 async function updateTronicAdmin() {
-  // Configure the client to use the local cluster
-  anchor.setProvider(anchor.AnchorProvider.env());
-
-  // Read the generated IDL
-  const idl = JSON.parse(
-    require("fs").readFileSync("./target/idl/community_engagement_protocol.json", "utf8")
-  );
-
-  // Address of the deployed program
-  const programId = new anchor.web3.PublicKey("7FQ74JMt2Eeca2RD2aLVBv4No8e9PUt8SHfGsUzKhqje");
-
-  // Generate the program client from IDL
-  const program = new anchor.Program(idl, programId) as Program<CommunityEngagementProtocol>;
-
-  // Current admin's keypair (you'll need to replace this with the actual keypair)
-  const currentAdminKeypair = anchor.web3.Keypair.fromSecretKey(
-    Buffer.from(JSON.parse(require("fs").readFileSync("/path/to/current/admin/keypair.json", "utf-8")))
-  );
+     // Current admin's keypair 
+     const keypairPath = path.join(__dirname, '..', 'deploy-keypair.json');
+     const currentAdminKeypair = anchor.web3.Keypair.fromSecretKey(
+       new Uint8Array(JSON.parse(fs.readFileSync(keypairPath, 'utf-8')))
+     );
 
   // New admin's public key (replace with the actual new admin's public key)
   const newAdminPublicKey = new anchor.web3.PublicKey("NEW_ADMIN_PUBLIC_KEY_HERE");
 
-  // Derive the PDA for the program state
-  const [programStatePda] = anchor.web3.PublicKey.findProgramAddressSync(
-    [Buffer.from("program-state")],
-    program.programId
-  );
+  // Check if ANCHOR_PROVIDER_URL is set, if not, use a default value
+  const rpcUrl = process.env.ANCHOR_PROVIDER_URL || "https://api.devnet.solana.com";
+  const connection = new anchor.web3.Connection(rpcUrl, 'confirmed');
+  const wallet = new anchor.Wallet(currentAdminKeypair);
+
+  const provider = new anchor.AnchorProvider(connection, wallet, {});
+  anchor.setProvider(provider);
+
+  // Read the generated IDL
+  const idlPath = path.join(__dirname, '..', 'target', 'idl', 'community_engagement_protocol.json');
+  const idl = JSON.parse(fs.readFileSync(idlPath, "utf8"));
+
+  // Generate the program client from IDL
+  const program = new anchor.Program(idl) as Program<CommunityEngagementProtocol>;
 
   try {
     // Call the update_tronic_admin instruction
     const tx = await program.methods
       .updateTronicAdmin(newAdminPublicKey)
       .accounts({
-        programState: programStatePda,
         currentAdmin: currentAdminKeypair.publicKey,
       })
       .signers([currentAdminKeypair])
