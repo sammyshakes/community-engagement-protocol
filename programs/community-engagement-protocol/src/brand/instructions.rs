@@ -40,7 +40,7 @@ pub fn create_brand(
         tags,
     };
 
-    ctx.accounts.brand_list.add(brand.key());
+    brand_list.add(brand.key());
 
     msg!("Brand '{}' created", brand.name);
     Ok(())
